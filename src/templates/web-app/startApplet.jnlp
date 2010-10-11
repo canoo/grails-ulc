@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<jnlp spec="1.5+" codebase="$$codebase" href="$$name">
+    <information>
+        <title>@grails.app.name@</title>
+        <vendor>@grails.app.name@</vendor>
+        <homepage href="http://www.canoo.com/"/>
+        <description kind="short">@grails.app.name@</description>
+    </information>
+    <security>
+        <all-permissions />
+    </security>
+    <resources>
+@ulc.client.jars@
+    </resources>
+    <resources os="Mac OS X">
+        <j2se version="1.5+"
+              href="http://java.sun.com/products/autodl/j2se"
+              initial-heap-size="64m"
+              max-heap-size="256m"
+              java-vm-args="-d32 -Dcom.apple.eawt.CocoaComponent.CompatibilityMode=false" />
+    </resources>
+    <resources os="Windows">
+        <j2se version="1.5+"
+              initial-heap-size="64m"
+              max-heap-size="256m"/>
+    </resources>
+    <resources os="Linux">
+        <j2se version="1.5+"
+              initial-heap-size="64m"
+              max-heap-size="256m"/>
+    </resources>
+    <applet-desc name="@grails.app.name@"
+                 main-class="com.ulcjava.environment.applet.client.DefaultAppletLauncher"
+                 documentBase="$$codebase" width="100" height="100">
+        <param name="url-string" value="$$codebaseulc" />
+        <param name="separate_jvm" value="true" />
+    </applet-desc>
+</jnlp>
