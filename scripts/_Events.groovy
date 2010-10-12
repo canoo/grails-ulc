@@ -1,30 +1,38 @@
+/*
+ * Copyright 2009-2010 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @author ulcteam
+ */
+
 import org.apache.ivy.plugins.report.ReportOutputter
+
+includeTargets << grailsScript('_PluginDependencies')
+
+if(!compilingUlcPlugin()) {
+    includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
+}
 
 ULC_CLIENT_LIBS = []
 ULC_CLIENT_LIBS_DIR = new File("${basedir}/web-app/WEB-INF/lib/ulc-client-libs")
 
-private collectAllDeps(d) {
-    ULC_CLIENT_LIBS << "${d.id.name}-${d.id.revision}.jar".toString()
-    d.getDependencies('','runtime').each { d2 ->
-        collectAllDeps(d2)
-    }
-}
+eventSetClasspath = { cl ->
+    if(compilingUlcPlugin()) return
 
-private output = { report, cacheMgr, options ->
-    r = report.getConfigurationReport('runtime')
-    List deps = []
-
-    r.moduleIds.each { mid ->
-        r.getNodes(mid).each { dep ->
-            def mrid = dep.id
-            if(deps.contains(mrid)) return
-
-            if(mrid.name =~ /.*-client/) {
-                deps << dep
-                collectAllDeps(dep)
-            }
-        }
-    }
+    checkLicense()
 }
 
 eventCleanEnd = {
@@ -50,7 +58,6 @@ eventPackagePluginStart = {pluginName ->
 eventPackagingEnd = {
     if(compilingUlcPlugin()) return
 
-try{
     copyClientJars()
 
     def r = grailsSettings.dependencyManager.resolveDependencies('runtime')
@@ -90,13 +97,36 @@ try{
         def f = dependencies.find{it.name == libName}
         if(f) copyFile(f, true)
     }
-}catch(x){x.printStackTrace()}
 }
 
 eventCreateWarStart = { warName, stagingDir ->
     // remove duplicate jar files
     ULC_CLIENT_LIBS.each { libName ->
         ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libName}"), quiet: true, failonerror: false)
+    }
+}
+
+private collectAllDeps(d) {
+    ULC_CLIENT_LIBS << "${d.id.name}-${d.id.revision}.jar".toString()
+    d.getDependencies('','runtime').each { d2 ->
+        collectAllDeps(d2)
+    }
+}
+
+private output = { report, cacheMgr, options ->
+    r = report.getConfigurationReport('runtime')
+    List deps = []
+
+    r.moduleIds.each { mid ->
+        r.getNodes(mid).each { dep ->
+            def mrid = dep.id
+            if(deps.contains(mrid)) return
+
+            if(mrid.name =~ /.*-client/) {
+                deps << dep
+                collectAllDeps(dep)
+            }
+        }
     }
 }
 
