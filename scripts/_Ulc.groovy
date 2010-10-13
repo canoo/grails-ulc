@@ -78,7 +78,7 @@ checkLicenseExpirationDate = {
     File developerLicense = ulcLicenseDir.listFiles().find{it.name =~ /^DEVELOPER-\d{4}\.lic$/}
     Properties license = readLicenseText(developerLicense.text)
     Date dateShipped = dateFormat.parse(license['date-shipped'])
-    int period = license.get('evaluation-period')?.toInteger() ?: 365i
+    int period = license.get('evaluation-period')?.toInteger() ?: 0i
     Date expirationDate = dateShipped + period
     Date today = new Date()
     Date warningDate = expirationDate - 6
@@ -87,22 +87,24 @@ checkLicenseExpirationDate = {
     warningDate.clearTime()
     today.clearTime()
 
-    // license has expired
-    if(today.after(expirationDate)) {
-        showLicenseExpiredWindow(expirationDate)
-    } else if(today.after(warningDate)) {
-        File ulcWarningCheck = new File(System.getProperty('user.home'), '.ulc-check')
-        if(ulcWarningCheck.exists()) {
-            Date when = dateFormat.parse(ulcWarningCheck.text.trim())
-            when.clearTime()
-            if(when == today) return
-        }
+    // license has expired (check for evaluation only!)
+    if(period != 0) {
+        if(today.after(expirationDate)) {
+            showLicenseExpiredWindow(expirationDate)
+        } else if(today.after(warningDate)) {
+            File ulcWarningCheck = new File(System.getProperty('user.home'), '.ulc-check')
+            if(ulcWarningCheck.exists()) {
+                Date when = dateFormat.parse(ulcWarningCheck.text.trim())
+                when.clearTime()
+                if(when == today) return
+            }
 
-        ulcWarningCheck.text = dateFormat.format(today) 
+            ulcWarningCheck.text = dateFormat.format(today)
 
-        int days = today - warningDate
-        showLicenseWarningWindow(days)
-    } // OK!
+            int days = today - warningDate
+            showLicenseWarningWindow(days)
+        } // OK!
+    }
 }
 
 checkExistingLicense = {
@@ -212,7 +214,7 @@ showLicenseExpiredWindow = { expirationDate ->
               locationRelativeTo: null, windowClosed: { latch.countDown() }) {
             borderLayout()
             scrollPane(constraints: CENTER, preferredSize: [400, 250]) {
-                textArea(wrapStyleWord: true, lineWrap: true, text: "Your license has expired on ${dateFormat.format(expirationDate)}.\n\nWe urge you to get in touch with a Canoo sales representative to find out more about the different licensing options available for Canoo RIA Suite. Or you can click the 'Buy now' button.\n\n You can contact Canoo by sending a message to sales@canoo.com")
+                textArea(editable: false, wrapStyleWord: true, lineWrap: true, text: "Your license has expired on ${dateFormat.format(expirationDate)}.\n\nWe urge you to get in touch with a Canoo sales representative to find out more about the different licensing options available for Canoo RIA Suite. Or you can click the 'Buy now' button.\n\n You can contact Canoo by sending a message to sales@canoo.com")
             }
             panel(constraints: SOUTH) {
                 gridLayout(cols: 2, rows: 1)
@@ -234,7 +236,7 @@ showLicenseWarningWindow = { int days ->
               locationRelativeTo: null, windowClosed: { latch.countDown() }) {
             borderLayout()
             scrollPane(constraints: CENTER, preferredSize: [400, 250]) {
-                textArea(wrapStyleWord: true, lineWrap: true, text: "Your license will expire in ${days} day${days == 1? '': 's'}.\n\nWe encourage you to get in touch with a Canoo sales representative to find out more about the different licensing options available for Canoo RIA Suite. Or you can click the 'Buy now' button.\n\n You can contact Canoo by sending a message to sales@canoo.com")
+                textArea(editable: false, wrapStyleWord: true, lineWrap: true, text: "Your license will expire in ${days} day${days == 1? '': 's'}.\n\nWe encourage you to get in touch with a Canoo sales representative to find out more about the different licensing options available for Canoo RIA Suite. Or you can click the 'Buy now' button.\n\n You can contact Canoo by sending a message to sales@canoo.com")
             }
             panel(constraints: SOUTH) {
                 gridLayout(cols: 2, rows: 1)
