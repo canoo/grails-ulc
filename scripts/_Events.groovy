@@ -104,16 +104,21 @@ eventCreateWarStart = { warName, stagingDir ->
     ULC_CLIENT_LIBS.each { libName ->
         ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libName}"), quiet: true, failonerror: false)
     }
+
+    // jar up license files
+    ant.jar(destfile: "${stagingDir}/WEB-INF/lib/ulc-deployment-key.jar") {
+        fileset(dir: ulcLicenseDir, includes: 'DEPLOYMENT-*.lic')
+    }
 }
 
-private collectAllDeps(d) {
+collectAllDeps = { d ->
     ULC_CLIENT_LIBS << "${d.id.name}-${d.id.revision}.jar".toString()
     d.getDependencies('','runtime').each { d2 ->
         collectAllDeps(d2)
     }
 }
 
-private output = { report, cacheMgr, options ->
+output = { report, cacheMgr, options ->
     r = report.getConfigurationReport('runtime')
     List deps = []
 
