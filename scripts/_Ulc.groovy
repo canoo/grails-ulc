@@ -132,53 +132,7 @@ checkLicenseToken = {
 }
 
 downloadEvalLicense = {
-    String text = '''--- START LICENSE ---
---- START MODULE ---
-license=TD-0700-17915341954356967821
-module-type=DEVELOPER
-product-name=ULC Core
-product-version=7.0
-user-info=Grails ULC Plugin  <grails-ulc-plugin@canoo.com>
-date-shipped=2010-10-12
-evaluation
-evaluation-period=90
-instance-limit=multiple-instances
-
-encoded-data-00=bGljZW5zZT1URC0wNzAwLTE3OTE1MzQxOTU0MzU2OTY3ODIxCm1v
-encoded-data-01=ZHVsZS10eXBlPURFVkVMT1BFUgpwcm9kdWN0LW5hbWU9VUxDIENv
-encoded-data-02=cmUKcHJvZHVjdC12ZXJzaW9uPTcuMAp1c2VyLWluZm89R3JhaWxz
-encoded-data-03=IFVMQyBQbHVnaW4gIDxncmFpbHMtdWxjLXBsdWdpbkBjYW5vby5j
-encoded-data-04=b20+CmRhdGUtc2hpcHBlZD0yMDEwLTEwLTEyCmV2YWx1YXRpb24K
-encoded-data-05=ZXZhbHVhdGlvbi1wZXJpb2Q9OTAKaW5zdGFuY2UtbGltaXQ9bXVs
-encoded-data-06=dGlwbGUtaW5zdGFuY2VzCg==
-
-encoded-signature-00=MCwCFDZmGzfv0T4JS3RDE0wAyc8nPEUfAhRP+jsiYL0HYEF
-encoded-signature-01=/r5/RdaYJKuqiog==
-
---- END MODULE ---
---- START MODULE ---
-license=TD-0700-17915341954356967821
-module-type=DEPLOYMENT
-product-name=ULC Core
-product-version=7.0
-user-info=Grails ULC Plugin  <grails-ulc-plugin@canoo.com>
-date-shipped=2010-10-12
-evaluation
-evaluation-period=90
-
-encoded-data-00=bGljZW5zZT1URC0wNzAwLTE3OTE1MzQxOTU0MzU2OTY3ODIxCm1v
-encoded-data-01=ZHVsZS10eXBlPURFUExPWU1FTlQKcHJvZHVjdC1uYW1lPVVMQyBD
-encoded-data-02=b3JlCnByb2R1Y3QtdmVyc2lvbj03LjAKdXNlci1pbmZvPUdyYWls
-encoded-data-03=cyBVTEMgUGx1Z2luICA8Z3JhaWxzLXVsYy1wbHVnaW5AY2Fub28u
-encoded-data-04=Y29tPgpkYXRlLXNoaXBwZWQ9MjAxMC0xMC0xMgpldmFsdWF0aW9u
-encoded-data-05=CmV2YWx1YXRpb24tcGVyaW9kPTkwCg==
-
-encoded-signature-00=MC0CFQCB9B4fF61H72SEKUrbsSZ7cTpmSQIUXADlHshjokx
-encoded-signature-01=OJnuQ4c1wuIKeRuw=
-
---- END MODULE ---
---- END LICENSE ---'''
-    // String text = 'http://ulc-test.canoo.com/rest/license/evalCore'.toURL().text
+    String text = 'http://ulc-test.canoo.com/rest/license/evalCore'.toURL().text
     Map<String, String> licenses = parseLicenseText(text)
  
     String version = ''
@@ -218,7 +172,7 @@ showLicenseExpiredWindow = { expirationDate ->
             }
             panel(constraints: SOUTH) {
                 gridLayout(cols: 2, rows: 1)
-                button('Buy now', actionPerformed: { })
+                button('Buy now', actionPerformed: { openURL('http://www.canoo.com/ulc/') })
                 button('Close', actionPerformed: {frame.dispose()})
             }
         }
@@ -240,11 +194,50 @@ showLicenseWarningWindow = { int days ->
             }
             panel(constraints: SOUTH) {
                 gridLayout(cols: 2, rows: 1)
-                button('Buy now', actionPerformed: { })
+                button('Buy now', actionPerformed: { openURL('http://www.canoo.com/ulc/') })
                 button('Close', actionPerformed: {frame.dispose()})
             }
         }
     }
 
     latch.await()
+}
+
+/*
+ * The following code was adapted from
+ * http://www.centerkey.com/java/browser/
+ */
+
+String[] browsers = ["google-chrome", "firefox", "opera", "epiphany", "konqueror", "conkeror", "midori", "kazehakase", "mozilla"] as String[]
+String errMsg = "Error attempting to launch web browser";
+
+private openURL(String url) {
+    try { //attempt to use Desktop library from JDK 1.6+
+        Class<?> d = Class.forName("java.awt.Desktop");
+        d.getDesktop().browse()
+        // d.getDeclaredMethod("browse", [URI] as Class[]).invoke(d.getDeclaredMethod("getDesktop").invoke(null), [URI.create(url)] as Object[]);
+        //above code mimicks: java.awt.Desktop.getDesktop().browse()
+    } catch (Exception ignore) { //library not available or failed
+        String osName = System.getProperty("os.name");
+        try {
+            if (osName.startsWith("Mac OS")) {
+                Class.forName("com.apple.eio.FileManager").openURL(url)
+                // Class.forName("com.apple.eio.FileManager").getDeclaredMethod("openURL", [String] as Class[]).invoke(null, [url] as Object[]);
+            } else if (osName.startsWith("Windows")) {
+                Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " + url);
+            } else { //assume Unix or Linux 
+                String browser = null;
+                for (String b : browsers) {
+                    if (browser == null && Runtime.getRuntime().exec(["which", b] as String[]).getInputStream().read() != -1) {
+                        Runtime.getRuntime().exec([browser = b, url] as String[]);
+                    }
+                }
+                if (browser == null) {
+                    throw new Exception(Arrays.toString(browsers));
+                }
+            }
+        } catch (Exception e) {
+            javax.swing.JOptionPane.showMessageDialog(null, errMsg + "\n" + e.toString());
+        }
+    }
 }
