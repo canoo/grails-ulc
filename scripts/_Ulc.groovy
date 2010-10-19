@@ -71,7 +71,7 @@ checkLicense = {
 downloadLicenseIfNeeded = {
     if(checkExistingLicense()) return
     if(checkLicenseToken()) return
-    downloadEvalLicense()
+    checkEvalLicense()
 }
 
 checkLicenseExpirationDate = {
@@ -128,11 +128,26 @@ checkExistingLicense = {
 }
 
 checkLicenseToken = {
-
+    ant.input(addProperty: "access.token", message: "Do you have a license access token? If so please enter:")
+    def token = ant.antProject.properties."access.token"
+    def text = null
+    try {
+        text = "https://ulc.canoo.com/rest/license/promoCore/$token".toURL().text
+    } catch(x) {
+        // if(x.message =~ /.*HTTP response code: 500.*/)
+        // any error means no valid tokenm or already used
+        return false
+    } 
+    downloadLicense(text)
+    true
 }
 
-downloadEvalLicense = {
-    String text = 'http://ulc-test.canoo.com/rest/license/evalCore'.toURL().text
+checkEvalLicense = {
+    String text = 'https://ulc.canoo.com/rest/license/ULC%20Core'.toURL().text
+    downloadLicense(text)
+}
+
+downloadLicense = { text ->
     Map<String, String> licenses = parseLicenseText(text)
  
     String version = ''

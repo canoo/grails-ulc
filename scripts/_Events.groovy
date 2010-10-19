@@ -52,6 +52,14 @@ eventPackagePluginStart = {pluginName ->
     copyClientJars(true)
 }
 
+eventPackagePluginEnd = {pluginName ->
+    if(!compilingUlcPlugin()) return
+
+    ant.zip(destfile: pluginZip, filesonly: true, update: true) {
+        zipfileset(dir: "${basedir}/docs", includes: '*.pdf', prefix: 'docs')
+    }
+}
+
 /**
  * This event handler is responsible to handle client-jars provided by the application
  */
