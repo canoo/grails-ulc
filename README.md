@@ -54,20 +54,25 @@ entry point for your newly clreated ULC application. The following snippet
 reproduces the contents of the evaluated application template
 
     package com.acme
+
     import com.ulcjava.applicationframework.application.SingleFrameApplication
     import com.ulcjava.base.application.ULCComponent
     import com.ulcjava.base.application.ULCFrame
     import com.canoo.groovy.ulc.ULCBuilder
+
     class SampleApplication extends SingleFrameApplication {
         private final ULCBuilder builder = new ULCBuilder()
+
         protected ULCComponent createStartupMainContent() {
             builder.label('Content Goes Here')
         }
+
         protected void initFrame(ULCFrame frame) {
             super.initFrame(frame)
             frame.setLocationRelativeTo(null)
         }
     }
+
 
 You'll notice the `createStartupMainContentMethod()`. This is the only method
 you must implement to get an ULC application running. The template suggest you
