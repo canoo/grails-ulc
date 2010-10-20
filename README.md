@@ -26,6 +26,7 @@ Follow these steps to get started with your first ULC application.
 
 1. Install the grails-ulc plugin by invoking the `install-plugin` command, like
    this
+
    
      grails install-plugin http://github.com/canoo/grails-ulc/grails-ulc-1.0.zip
 
@@ -38,7 +39,8 @@ enter to continue, the plugin will resort to downloading an evaluation license.
 3. Create an ULC application. This step is performed by invoking the following
 command
 
-    grails create-app-ulc <nameOfYourApplication>
+
+    grails create-app-ulc &lt;nameOfYourApplication&gt;
 
 A webapp application may contain several ULC applications, however the default
 template and configuration provided by this plugin are setup for a single ULC
@@ -52,19 +54,15 @@ entry point for your newly clreated ULC application. The following snippet
 reproduces the contents of the evaluated application template
 
     package com.acme
-    
     import com.ulcjava.applicationframework.application.SingleFrameApplication
     import com.ulcjava.base.application.ULCComponent
     import com.ulcjava.base.application.ULCFrame
     import com.canoo.groovy.ulc.ULCBuilder
-    
     class SampleApplication extends SingleFrameApplication {
         private final ULCBuilder builder = new ULCBuilder()
-    
         protected ULCComponent createStartupMainContent() {
             builder.label('Content Goes Here')
         }
-    
         protected void initFrame(ULCFrame frame) {
             super.initFrame(frame)
             frame.setLocationRelativeTo(null)
