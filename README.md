@@ -44,7 +44,7 @@ A webapp application may contain several ULC applications, however the default
 template and configuration provided by this plugin are setup for a single ULC
 application. This is to take advantage of ULC's application framework. Of course
 this is just for your convenience. In case you require more than one ULC
-application running within the same Grails application just follow the guidlines
+application running within the same Grails application just follow the guidelines
 in the enclosed PDF documents (*ULCApplicationDevelopmentGuide.pdf*).
 
 4. Locate the generated application class file under *src/groovy*. This is the
@@ -94,7 +94,7 @@ Packages the application as a war and runs it inside an embedded container.
 
     grails war
 
-Packages the applicaiton as a war. You're tasked with deploying this file to an
+Packages the application as a war. You're tasked with deploying this file to an
 application server of your choice.
 
 This is all that you need to get started developing an ULC application for Grails.
