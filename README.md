@@ -6,7 +6,7 @@ building Rich Internet applications for the Java platform with an emphasis on
 productivity and code reuse.
 
 Canoo RIA Suite empowers developers by providing a server-side model for the
-whole application. Most of the times a developer doesn't need to be concerned
+whole application. Most of the times, a developer doesn't need to be concerned
 with code that is specific to the presentation tier, that's what the ULC Core
 technology is for. There are, of course, times when such a need arises, when
 that happens be aware that the ULC technology is easily extensible via a set
@@ -42,16 +42,16 @@ command
 
     grails create-app-ulc &lt;nameOfYourApplication&gt;
 
-A webapp application may contain several ULC applications, however the default
-template and configuration provided by this plugin are setup for a single ULC
-application. This is to take advantage of ULC's application framework. Of course
+A webapp application may contain several ULC applications. However, the default
+template and configuration provided by this plugin are set up for a single ULC
+application. This is to take advantage of ULC's application framework. Of course,
 this is just for your convenience. In case you require more than one ULC
 application running within the same Grails application just follow the guidelines
 in the enclosed PDF documents (*ULCApplicationDevelopmentGuide.pdf*).
 
 4. Locate the generated application class file under *src/groovy*. This is the
-entry point for your newly clreated ULC application. The following snippet
-reproduces the contents of the evaluated application template
+entry point for your newly created ULC application. The following snippet
+reproduces the content of the evaluated application template
 
     package com.acme
 
@@ -76,18 +76,18 @@ reproduces the contents of the evaluated application template
 
 You'll notice the `createStartupMainContentMethod()`. This is the only method
 you must implement to get an ULC application running. The template suggest you
-sing **ULCBuilder** to create the UI elements. This builder works in the same
+using **ULCBuilder** to create the UI elements. This builder works in the same
 way that Groovy's SwingBuilder does; if you're familiar with Grails builders
 and a bit of Swing then you're good to go.
 
 5. Run the application. This can be achieved in two modes: development or
-production. The difference strives in the need of a runtime license for the
+production mode. The difference strives in the need of a runtime license for the
 latter mode. This runtime license should have been downloaded in the second step.
 Running the application in development mode is as easy as invoking
 
     grails run-app-ulc
 
-This command will package the application and bootstrap it using an special
+This command will package the application and bootstrap it using a special
 launcher. Running the application in production mode should be done by packaging
 the whole application in a war; for this grails offers two choices once more:
 
