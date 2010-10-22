@@ -54,7 +54,7 @@ enter to continue, the plugin will resort to downloading an evaluation license.
 3. Create an ULC application. This step is performed by invoking the following
 command
 
-        grails create-app-ulc &lt;nameOfYourApplication&gt;
+        grails create-app-ulc <nameOfYourApplication>
 
     A webapp application may contain several ULC applications. However, the default
 template and configuration provided by this plugin are set up for a single ULC
