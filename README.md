@@ -2,23 +2,30 @@ grails-ulc-plugin
 =================
 
 The grails-ulc plugin provides integration with Canoo RIA Suite, a better way to
-building Rich Internet applications for the Java platform with an emphasis on
-productivity and code reuse.
+build Rich Internet Applications for the Java platform with an emphasis on
+beauty and productivity.
 
-Canoo RIA Suite empowers developers by providing a server-side model for the
-whole application. Most of the times, a developer doesn't need to be concerned
-with code that is specific to the presentation tier, that's what the ULC Core
-technology is for. There are, of course, times when such a need arises, when
-that happens be aware that the ULC technology is easily extensible via a set
-of prepackage extensions available from Canoo itself. If the required behavior
-is by chance not provided by any of these packages then developers are still
-able to make their own extensions.
+Canoo RIA Suite empowers developers to implement pure server-side web
+applications with the user experience of a desktop (Swing) application.
+Key features are:
+* Rich user interface (Swing)
+* Pure server-side programming
+* Swing-like programming model with APIs being almost identical to Swing
+* No application-specific code sent to the client, no JavaScript (not even generated JavaScript)
+* 100% pure Java with full IDE and other tool support; using Groovy is optional
+* Custom extensions are possible
+* Many business components are available
+* Java security model
+* Low bandwidth demands
+
+Please find more information about the Canoo RIA Suite under
+<http://www.canoo.com/ulc>.
 
 Getting Started
 ===============
 
-The ULC Core technology requires a valid license in order to be used in a
-development environment. A runtime license is also required to deploy an 
+The ULC Core technology requires a valid developer license in order to be used in a
+development environment. A (free) runtime license is also required to deploy an
 application to a server or as a war. The plugin can check for the availability
 of a valid license on the development library.
 
@@ -32,7 +39,7 @@ Follow these steps to get started with your first ULC application.
 
 2. Upon installing the plugin it will attempt to locate a valid license on your
 system. If such a license is found then you're good to go to the next step. If
-no license is found the the plugin will askl you for an access token used to
+no license is found the the plugin will ask you for an access token used to
 download a personalized license. If you do not have an access token then hit
 enter to continue, the plugin will resort to downloading an evaluation license.
 
@@ -106,6 +113,6 @@ the PDF files that are bundled with the plugin.
 Additional information in form of videos, sample applications, testimonials and
 forums can be reached by pointing your browser to
 
-    http://www.canoo.com/ulc
+    <http://www.canoo.com/ulc>
 
 Happy coding!
