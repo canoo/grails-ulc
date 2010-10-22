@@ -8,14 +8,23 @@ beauty and productivity.
 Canoo RIA Suite empowers developers to implement pure server-side web
 applications with the user experience of a desktop (Swing) application.
 Key features are:
+
 * Rich user interface (Swing)
+
 * Pure server-side programming
+
 * Swing-like programming model with APIs being almost identical to Swing
+
 * No application-specific code sent to the client, no JavaScript (not even generated JavaScript)
+
 * 100% pure Java with full IDE and other tool support; using Groovy is optional
+
 * Custom extensions are possible
+
 * Many business components are available
+
 * Java security model
+
 * Low bandwidth demands
 
 Please find more information about the Canoo RIA Suite under
