@@ -117,25 +117,36 @@ checkExistingLicense = {
 
     // sort by version
     ulcDirs.sort{ a, b ->
-        String v1 = (a.name =~ /(\d\.\d[\.\d])?/)[0][1]
-        String v2 = (b.name =~ /(\d\.\d[\.\d])?/)[0][1]
+        String v1 = (a.name =~ /(\d\.\d(\.\d)?)/)[0][1]
+        String v2 = (b.name =~ /(\d\.\d(\.\d)?)/)[0][1]
         v1.toDouble() <=> v2.toDouble()
     }
 
     // pick latest one
-    ulcLicenseDir = ulcDirs[-1]
+    def candidateUlcLicenseDir = ulcDirs[-1]
+
+    // check if version >= 7.0
+    String version = (candidateUlcLicenseDir.name =~ /(\d.\d(\.\d)?)/)[0][1]
+    if(version < '7.0') return
+
+    ulcLicenseDir = candidateUlcLicenseDir
     true
 }
 
 checkLicenseToken = {
-    ant.input(addProperty: "access.token", message: "Do you have a license access token? If so please enter:")
+    ant.input(addProperty: "access.token", message: "Do you have a license access token? If so please enter it or type [ENTER] to proceed:")
     def token = ant.antProject.properties."access.token"
+
+    if(!token?.trim()) return false
+
     def text = null
     try {
         text = "https://ulc.canoo.com/rest/license/promoCore/$token".toURL().text
+        println 'Access token verified.'
     } catch(x) {
         // if(x.message =~ /.*HTTP response code: 500.*/)
-        // any error means no valid tokenm or already used
+        // any error means no valid token or already used
+        println 'Access token is invalid or it has expired.'
         return false
     } 
     downloadLicense(text)
@@ -144,6 +155,7 @@ checkLicenseToken = {
 
 checkEvalLicense = {
     String text = 'https://ulc.canoo.com/rest/license/ULC%20Core'.toURL().text
+    println 'Downloading evaluation license...'
     downloadLicense(text)
 }
 
