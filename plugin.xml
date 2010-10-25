@@ -1,4 +1,4 @@
-<plugin name='ulc' version='0.1' grailsVersion='1.3.4 &gt; *'>
+<plugin name='ulc' version='0.2' grailsVersion='1.3.4 &gt; *'>
   <author>Canoo Engineering AG</author>
   <authorEmail>ulc-team@canoo.com</authorEmail>
   <title>ULC-Grails-Integration</title>
@@ -9,9 +9,6 @@ http://www.canoo.com/ulc
   <documentation>http://grails.org/plugin/ulc</documentation>
   <resources>
     <resource>BuildConfig</resource>
-    <resource>Config</resource>
-    <resource>DataSource</resource>
-    <resource>UrlMappings</resource>
   </resources>
   <dependencies />
   <behavior />
