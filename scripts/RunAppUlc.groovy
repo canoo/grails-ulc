@@ -5,17 +5,13 @@ includeTargets << grailsScript('Package')
 includeTargets << grailsScript('Bootstrap')
 
 ant.property(environment: 'env')
-ulcHome = ant.antProject.properties.'env.ULC_HOME'
-userHome = ant.antProject.properties.'env.HOME'
 
 target(runAppUlc: 'Run the ULC application in standalone mode') {
     depends(checkVersion, configureProxy, packageApp, classpath)
 
-    def urls = [classesDir.toURI().toURL(), grailsSettings.resourcesDir.toURI().toURL()]
-    def file = new File(ulcHome, 'license')
-    if(file.exists()) file.eachFileMatch(~/.*\.jar/){f -> urls << f.toURI().toURL()}
-    file = new File(userHome, ".ulc-${Metadata.current.'app.ulc.version'}") 
-    if(file.exists()) urls << file.toURI().toURL()
+    def urls = [classesDir.toURI().toURL(),
+                grailsSettings.resourcesDir.toURI().toURL(),
+                ulcLicenseDir.toURI().toURL()]
 
     urls.each{rootLoader.addURL(it)}
 
