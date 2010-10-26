@@ -43,7 +43,7 @@ Follow these steps to get started with your first ULC application.
 1. Install the grails-ulc plugin by invoking the `install-plugin` command, like
    this
 
-        grails install-plugin http://github.com/canoo/grails-ulc/raw/master/grails-ulc-0.2.zip
+        grails install-plugin ulc
 
 2. Upon installing the plugin it will attempt to locate a valid license on your
 system. If such a license is found then you're good to go to the next step. If

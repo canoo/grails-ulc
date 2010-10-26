@@ -32,7 +32,7 @@ public class UlcGrailsRunner {
         def runner = runApp()
         StandaloneSessionStateListener listener = new StandaloneSessionStateListener()
         runner.getClientSession().addSessionStateListener(listener)
-        runner.getServerSession().addRoundTripListener new GrailsInitializerForLocalUlcApp(appCtx: appCtx)
+        // runner.getServerSession().addRoundTripListener new GrailsInitializerForLocalUlcApp(appCtx: appCtx)
         synchronized (listener) {
             listener.wait()
         }

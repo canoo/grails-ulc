@@ -116,11 +116,7 @@ checkExistingLicense = {
     if(!ulcDirs) return false
 
     // sort by version
-    ulcDirs.sort{ a, b ->
-        String v1 = (a.name =~ /(\d\.\d(\.\d)?)/)[0][1]
-        String v2 = (b.name =~ /(\d\.\d(\.\d)?)/)[0][1]
-        v1.toDouble() <=> v2.toDouble()
-    }
+    ulcDirs.sort { (it.name =~ /(\d\.\d(\.\d)?)/)[0][1] }
 
     // pick latest one
     def candidateUlcLicenseDir = ulcDirs[-1]
