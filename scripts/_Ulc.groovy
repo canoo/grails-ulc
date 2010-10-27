@@ -230,37 +230,36 @@ showLicenseWarningWindow = { int days ->
  * The following code was adapted from
  * http://www.centerkey.com/java/browser/
  */
-
-String[] browsers = ["google-chrome", "firefox", "opera", "epiphany", "konqueror", "conkeror", "midori", "kazehakase", "mozilla"] as String[]
-String errMsg = "Error attempting to launch web browser";
-
 private openURL(String url) {
+    String[] browsers = ["google-chrome", "firefox", "opera", "epiphany", "konqueror", "conkeror", "midori", "kazehakase", "mozilla"] as String[]
+    String errMsg = "Error attempting to launch web browser"
+
     try { //attempt to use Desktop library from JDK 1.6+
-        Class<?> d = Class.forName("java.awt.Desktop");
+        Class<?> d = Class.forName("java.awt.Desktop")
         d.getDesktop().browse()
         // d.getDeclaredMethod("browse", [URI] as Class[]).invoke(d.getDeclaredMethod("getDesktop").invoke(null), [URI.create(url)] as Object[]);
         //above code mimicks: java.awt.Desktop.getDesktop().browse()
     } catch (Exception ignore) { //library not available or failed
-        String osName = System.getProperty("os.name");
+        String osName = System.getProperty("os.name")
         try {
             if (osName.startsWith("Mac OS")) {
                 Class.forName("com.apple.eio.FileManager").openURL(url)
                 // Class.forName("com.apple.eio.FileManager").getDeclaredMethod("openURL", [String] as Class[]).invoke(null, [url] as Object[]);
             } else if (osName.startsWith("Windows")) {
-                Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " + url);
+                Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " + url)
             } else { //assume Unix or Linux 
-                String browser = null;
+                String browser = null
                 for (String b : browsers) {
                     if (browser == null && Runtime.getRuntime().exec(["which", b] as String[]).getInputStream().read() != -1) {
-                        Runtime.getRuntime().exec([browser = b, url] as String[]);
+                        Runtime.getRuntime().exec([browser = b, url] as String[])
                     }
                 }
                 if (browser == null) {
-                    throw new Exception(Arrays.toString(browsers));
+                    throw new Exception(Arrays.toString(browsers))
                 }
             }
         } catch (Exception e) {
-            javax.swing.JOptionPane.showMessageDialog(null, errMsg + "\n" + e.toString());
+            javax.swing.JOptionPane.showMessageDialog(null, errMsg + "\n" + e.toString())
         }
     }
 }
