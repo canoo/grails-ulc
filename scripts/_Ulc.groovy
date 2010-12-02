@@ -23,6 +23,8 @@ import java.text.SimpleDateFormat
 import groovy.swing.SwingBuilder
 import java.util.concurrent.CountDownLatch
 import javax.swing.JFrame
+import grails.util.GrailsNameUtils
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 dateFormat = new SimpleDateFormat('yyyy-MM-dd')
 
@@ -226,6 +228,30 @@ showLicenseWarningWindow = { int days ->
     latch.await()
 }
 
+generateApplicationsFile = { destination ->
+    Properties applications = new Properties()
+    def pathResolver = new PathMatchingResourcePatternResolver(getClass().classLoader)
+    pathResolver.getResources("file://${basedir}/src/**/*UlcConfiguration.xml".toString()).each { cfg ->
+        String className = new XmlSlurper().parse(cfg.file).applicationClassName.toString() - 'Application'
+        String alias = GrailsNameUtils.getShortName(className.toString())
+        applications[alias.toLowerCase()] = className
+    }
+    def destinationDir = new File(destination)
+    destinationDir.mkdirs()
+    applications.store(new FileOutputStream("${destination}/ulc-applications.properties".toString()), 'ULC Applications')
+}
+
+forEachUlcApplication = { callback ->
+    Map<String,String> applications = [:]
+    def pathResolver = new PathMatchingResourcePatternResolver(getClass().classLoader)
+    pathResolver.getResources("file://${basedir}/src/**/*UlcConfiguration.xml".toString()).each { cfg ->
+        String className = new XmlSlurper().parse(cfg.file).applicationClassName.toString() - 'Application'
+        String alias = GrailsNameUtils.getShortName(className.toString())
+        applications[alias.toLowerCase()] = className
+    }
+    applications.each { alias, className -> callback(alias, className) }   
+}
+
 /*
  * The following code was adapted from
  * http://www.centerkey.com/java/browser/
@@ -237,14 +263,11 @@ private openURL(String url) {
     try { //attempt to use Desktop library from JDK 1.6+
         Class<?> d = Class.forName("java.awt.Desktop")
         d.getDesktop().browse()
-        // d.getDeclaredMethod("browse", [URI] as Class[]).invoke(d.getDeclaredMethod("getDesktop").invoke(null), [URI.create(url)] as Object[]);
-        //above code mimicks: java.awt.Desktop.getDesktop().browse()
     } catch (Exception ignore) { //library not available or failed
         String osName = System.getProperty("os.name")
         try {
             if (osName.startsWith("Mac OS")) {
                 Class.forName("com.apple.eio.FileManager").openURL(url)
-                // Class.forName("com.apple.eio.FileManager").getDeclaredMethod("openURL", [String] as Class[]).invoke(null, [url] as Object[]);
             } else if (osName.startsWith("Windows")) {
                 Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler " + url)
             } else { //assume Unix or Linux 

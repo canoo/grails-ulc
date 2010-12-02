@@ -20,12 +20,18 @@
 
 includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
 
+ant.mkdir(dir: "${basedir}/grails-app/ulc")
 ant.mkdir(dir: "${basedir}/lib/ulc-client")
+ant.mkdir(dir: "${basedir}/src/ulc-client/common")
 updateMetadata('app.ulc.version': '7.0.1')
 
+ant.mkdir(dir: "${basedir}/ulc-signatures")
+ant.copy(todir: "${basedir}/ulc-signatures") {
+    fileset(dir: "${ulcPluginDir}/src/templates/signatures")
+}
 ant.mkdir(dir: "${basedir}/ulc-templates")
 ant.copy(todir: "${basedir}/ulc-templates") {
-    fileset(dir: "${ulcPluginDir}/src/templates/web-app")
+    fileset(dir: "${ulcPluginDir}/src/templates/launchers")
 }
 
 try {

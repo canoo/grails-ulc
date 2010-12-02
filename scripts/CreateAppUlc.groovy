@@ -18,27 +18,48 @@
  * @author ulcteam
  */
 
-import grails.util.GrailsNameUtils
 import groovy.xml.MarkupBuilder
 import groovy.xml.StreamingMarkupBuilder
 
 includeTargets << grailsScript("Init")
 includeTargets << grailsScript("_GrailsCreateArtifacts")
 
-target(main: "The description of the script goes here!") {
+target(main: "Creates a new ULC application along with its helper files.") {
     depends(checkVersion, parseArguments)
 
     def type = 'Application'
-    promptForName(type: type)
-    def name = argsMap['params'][0]
-    name = purgeRedundantArtifactSuffix(name, type)
-
+    def name = 'common'
+    
+    while(true) {
+        promptForName(type: type)
+        name = argsMap['params'][0]
+        name = purgeRedundantArtifactSuffix(name, type)
+        if(name == 'common') {
+            println "Name 'common' is reserved. Please choose a different one."
+        } else {
+            break
+        }
+    }
+    
+    createArtifact(name: name,
+        suffix: '',
+        type: 'CoderRegistryHolder',
+        path: 'grails-app/ulc')
+    ant.replace(file: artifactFile,
+        token: "@application.alias@", value: className.toLowerCase())
     createArtifact(name: name,
         suffix: type,
-        type: 'UlcApp',
-        path: 'src/groovy')
+        type: 'UlcApplication',
+        path: 'grails-app/ulc')
+    createArtifact(name: name,
+        suffix: 'Applet',
+        type: 'UlcApplet',
+        path: 'grails-app/ulc')
+    ant.replace(file: artifactFile,
+        token: "@application.name@", value: "${className}Application")
+    ant.mkdir(dir: "${basedir}/lib/ulc-client/${className.toLowerCase()}")
 
-    // previous call adds the following variables to the binding
+    // previous calls add the following variables to the binding
     // className = capitalized class name sans suffix (simple representation)
     // propertyName = uncapitalized class name sans suffix (simple representation)
 
@@ -46,10 +67,12 @@ target(main: "The description of the script goes here!") {
 
     createApplicationConfiguration(pkgPath, className)
     createResourceBundle(pkgPath, className)
+    createLaunchers(pkgPath, className)
 }
 
 private void createResourceBundle(pkgPath, className) {
-    File packageDir = new File("${basedir}/src/java/${pkgPath}/resources")
+    def pkg = pkgPath.replace('.' as char, '/' as char)
+    File packageDir = new File("${basedir}/src/java/${pkg}/resources")
     packageDir.mkdirs()
 
     File propertiesFile = new File(packageDir, "${className}Application.properties")
@@ -66,7 +89,10 @@ private void createResourceBundle(pkgPath, className) {
 private void createApplicationConfiguration(pkgPath, className) {
     String xmlString = generateXmlString(pkgPath + (pkgPath?'.':'') + className + 'Application')
 
-    File ulcConfigFile = new File("${basedir}/grails-app/conf/ULCApplicationConfiguration.xml")
+    def pkg = pkgPath.replace('.' as char, '/' as char)
+    File ulcConfigDir = new File("${basedir}/src/java/${pkg}")
+    ulcConfigDir.mkdirs()
+    File ulcConfigFile = new File(ulcConfigDir, "${className}UlcConfiguration.xml")
     ulcConfigFile.text = xmlString
 }
 
@@ -84,8 +110,9 @@ private String generateXmlString(appClassName) {
     params."xsi:schemaLocation" = "http://www.canoo.com/ulc/ULCApplicationConfiguration.xsd"
     xml.'ulc:ULCApplicationConfiguration'(params) {
         'ulc:applicationClassName'(appClassName)
+        'ulc:serverSessionProviderClassName'('com.canoo.grails.ulc.server.GrailsULCSessionProvider')
         'ulc:clientResources' {
-            'ulc:directory'('/WEB-INF/lib/ulc-client-libs')
+            'ulc:directory'('/ulc-client-libs')
             'ulc:pattern'('*.jar')
         }
     }
@@ -94,6 +121,32 @@ private String generateXmlString(appClassName) {
     return xmlString
 }
 
+private void createLaunchers(pkgPath, className) {
+    pkgPath = pkgPath.replace('.' as char, '/' as char)
+    createJavaArtifact(pkgPath: pkgPath,
+        className: className,
+        type: 'AppletLauncher')
+    createJavaArtifact(pkgPath: pkgPath,
+        className: className,
+        type: 'JnlpLauncher')
+}
+
+private void createJavaArtifact(Map args) {
+    def pkg = args.pkgPath.replace('/' as char, '.' as char)
+    def artifactDir = new File("${basedir}/src/ulc-client/${args.className.toLowerCase()}/${args.pkgPath}")
+    artifactDir.mkdirs()
+    def artifactFile = new File(artifactDir, "${args.className}${args.type}.java")
+    def templateFile = new File("${ulcPluginDir}/src/templates/artifacts/Ulc${args.type}.java")
+    artifactFile.text = templateFile.text
+    ant.replace(file: artifactFile,
+        token: "@artifact.name@", value: className)
+    if (pkg) {
+        ant.replace(file: artifactFile, token: "@artifact.package@", value: "package ${pkg};\n\n")
+    }
+    else {
+        ant.replace(file: artifactFile, token: "@artifact.package@", value: "")
+    }
+}
 
 // wishing the following was public in the standard Grails scripts
 private findPackage(name) {

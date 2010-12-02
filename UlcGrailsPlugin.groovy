@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import grails.util.GrailsNameUtils
+import grails.util.GrailsNameUtils 
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 /**
  * @author ulcteam
@@ -43,11 +44,6 @@ http://www.canoo.com/ulc
     def documentation = "http://grails.org/plugin/ulc"
 
     def doWithWebDescriptor = {webXml ->
-        String appClassName = extractApplicationClassName()
-        // Do not perform configuration if no application
-        // is available
-        if(!appClassName) return
-
         def servlets = webXml.'servlet'
         def servletDefinition = { name, klass, initParams = [:] ->
             def servletElement = servlets[servlets.size() - 1]
@@ -85,53 +81,34 @@ http://www.canoo.com/ulc
             }
         }
 
-        servletDefinition('ClientJarDownloader',
+        servletDefinition('JnlpDownloadServlet',
                           'jnlp.sample.servlet.JnlpDownloadServlet')
-        servletDefinition('ResourceDownloader',
-                          'com.ulcjava.easydeployment.server.ResourceDownloader')
-        // TODO externalize gsp/jnlp file name
-        servletDefinition('IndexServlet',
-                          'com.ulcjava.easydeployment.server.IndexServlet',
-                          ['applet-redirect': 'start.jsp',
-                           'jnlp-redirect': 'start.jnlp'])
-        servletDefinition('ServletContainerAdapter',
-                          'com.ulcjava.container.servlet.server.ServletContainerAdapter')
-        servletDefinition('ConfigPropertiesDownloader',
-                          'com.ulcjava.container.servlet.server.servlets.ConfigPropertiesDownloader')
-
-        def listeners = webXml.'listener'
-        def listenerElement = listeners[listeners.size() - 1]
-        listenerElement + {
-            'listener' {
-                'listener-class'('com.ulcjava.easydeployment.server.ClientJarPreparationListener')
-            }
+        servletMappingDefinition('JnlpDownloadServlet', '*.jnlp')
+           
+        forEachUlcApplication { alias, className ->
+            servletDefinition("UlcApplicationServlet_${alias}",
+                              'com.canoo.grails.ulc.server.UlcApplicationServlet',
+                              ['application-alias': alias,
+                              'is-applet': false])
+            servletDefinition("UlcApplicationServlet_${alias}_applet",
+                              'com.canoo.grails.ulc.server.UlcApplicationServlet',
+                              ['application-alias': alias,
+                              'is-applet': true])
+            servletMappingDefinition("UlcApplicationServlet_${alias}", "/${alias}.ulc")
+            servletMappingDefinition("UlcApplicationServlet_${alias}_applet", "/${alias}-applet.ulc")
         }
 
-        def applicationPackage = getPackageName(appClassName).replace('.' as char, '/' as char)
-
-        servletMappingDefinition('ClientJarDownloader', '*.jar')
-        servletMappingDefinition('ResourceDownloader', "/${applicationPackage}/resources/*")
-        servletMappingDefinition('ConfigPropertiesDownloader', '/clientconfig.properties')
-        servletMappingDefinition('ClientJarDownloader', '*.jnlp')
-        servletMappingDefinition('ServletContainerAdapter', '/ulc')
-        servletMappingDefinition('IndexServlet', '/start')
-
         mimeMappingDefinition('jnlp', 'application/x-java-jnlp-file')
-        mimeMappingDefinition('html', 'text/html')
-        mimeMappingDefinition('gif', 'image/gif')
-        mimeMappingDefinition('jpg', 'image/jepg')
-        mimeMappingDefinition('png', 'image/png')
     }
-
-    private extractApplicationClassName = { ->
-        File ulcConfigFile = new File("grails-app/conf/ULCApplicationConfiguration.xml")
-        if(!ulcConfigFile.exists()) return null
-        new XmlSlurper().parse(ulcConfigFile).applicationClassName
-    }
-
-    private getPackageName = { String className ->
-        if(GrailsNameUtils.isBlank(className)) return ''
-        String packageName = className - GrailsNameUtils.getShortName(className)
-        packageName.endsWith('.') ? packageName[0..-2] : packageName
+    
+    private forEachUlcApplication = { callback ->
+        Map<String,String> applications = [:]
+        def pathResolver = new PathMatchingResourcePatternResolver(getClass().classLoader)
+        pathResolver.getResources("classpath*:/**/*UlcConfiguration.xml".toString()).each { cfg ->
+            String className = new XmlSlurper().parse(cfg.file).applicationClassName.toString() - 'Application'
+            String alias = GrailsNameUtils.getShortName(className.toString())
+            applications[alias.toLowerCase()] = className
+        }
+        applications.each { alias, className -> callback(alias, className) }   
     }
 }

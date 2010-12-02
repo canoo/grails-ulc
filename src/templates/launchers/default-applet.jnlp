@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<jnlp spec="1.0+"
+      codebase="$$codebase"
+      href="$$name">
+    <information>
+        <title>@application.name@</title>
+        <vendor>Grails</vendor>
+        <homepage href="$$codebase"/>
+    </information>
+    <resources>
+        <j2se version="1.5+"/>
+@ulc.client.libs@
+    </resources>
+    <security>
+        <all-permissions/>
+    </security>
+    <applet-desc
+        documentbase="$$codebase"
+        name="@application.name@"
+        main-class="@application.launcher@"
+        width="480"
+        height="320">
+        <param name="url-string" value="$$codebase/@application.alias@-applet.ulc" />
+    </applet-desc>
+</jnlp>
+

@@ -19,150 +19,296 @@
  */
 
 import org.apache.ivy.plugins.report.ReportOutputter
+import org.apache.ivy.util.filter.ArtifactTypeFilter
+import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
+import java.util.jar.Pack200
+import java.util.jar.Pack200.Unpacker
+import java.util.zip.GZIPOutputStream
+import grails.util.GrailsUtil
+import grails.util.BuildSettingsHolder
+import static groovy.io.FileType.ANY
+import grails.util.GrailsNameUtils
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
+includeTargets << grailsScript('_GrailsCompile')
 includeTargets << grailsScript('_PluginDependencies')
+includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
 
-if(!compilingUlcPlugin()) {
+if (!compilingUlcPlugin()) {
     includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
 }
 
-ULC_CLIENT_LIBS = []
-ULC_CLIENT_LIBS_DIR = new File("${basedir}/web-app/WEB-INF/lib/ulc-client-libs")
-
 eventSetClasspath = { cl ->
-    if(compilingUlcPlugin()) return
+    if (compilingUlcPlugin()) return
 
     checkLicense()
 }
 
 eventCleanEnd = {
-    if(ULC_CLIENT_LIBS_DIR.exists()) ant.delete(dir: ULC_CLIENT_LIBS_DIR, quiet: false, failonerror: false)
-}
-
-/**
- * This event handler is responsible to handle client-jars provided by the plugin
- */
-eventPackagePluginStart = {pluginName ->
-    if(compilingUlcPlugin()) return
-
-    ULC_CLIENT_LIBS = []
-    if(ULC_CLIENT_LIBS_DIR.exists()) ant.delete(dir: ULC_CLIENT_LIBS_DIR, quiet: true)
-    ant.mkdir(dir: ULC_CLIENT_LIBS_DIR)
-
-    copyClientJars(true)
+    ulcClientClassesDir = new File(grailsSettings.projectWorkDir, 'ulc-client-classes')
+    if (ulcClientClassesDir.exists()) ant.delete(dir: ulcClientClassesDir, quiet: false, failonerror: false)
 }
 
 eventPackagePluginEnd = {pluginName ->
-    if(!compilingUlcPlugin()) return
+    if (!compilingUlcPlugin()) return
 
     ant.zip(destfile: pluginZip, filesonly: true, update: true) {
         zipfileset(dir: "${basedir}/docs", includes: '*.pdf', prefix: 'docs')
     }
 }
 
-/**
- * This event handler is responsible to handle client-jars provided by the application
- */
-eventPackagingEnd = {
-    if(compilingUlcPlugin()) return
+eventCompileEnd = {
+    if (compilingUlcPlugin()) return
 
-    copyClientJars()
+    ulcClientClassesDir = new File(grailsSettings.projectWorkDir, 'ulc-client-classes')
+    ulcClientClassesDirPath = ulcClientClassesDir.absolutePath
+    ulcClientClassesDir.mkdirs()
 
-    def r = grailsSettings.dependencyManager.resolveDependencies('runtime')
-    r.output([[
-        output: {report, cacheMgr, options ->
-            output(report, cacheMgr, options)
-        },
-        getName: {' UlcReportOutputter' }
-      ] as ReportOutputter
-    ] as ReportOutputter[], null, null)
+    ulcClientClassesCommonDir = new File(ulcClientClassesDir, 'common')
+    ulcClientClassesCommonDir.mkdirs()
 
-    def jnlpJars = []
-    ULC_CLIENT_LIBS.each { jar ->
-        if(jar =~ /ulc-core-client.*\.jar/){
-            jnlpJars << "        <jar href='$jar' main='true' />"
-        } else {
-            jnlpJars << "        <jar href='$jar' />"
+    // collect al clinte-side libs
+    def ulcClientLibs = collectClientJars()
+    def classpathId = 'ulc.compile.classpath'
+    ant.path(id: classpathId) {
+        for (jar in ulcClientLibs) {
+            pathelement(location: jar.absolutePath)
         }
     }
 
-    // copy & replace ULC templates
-    def ulcTemplates = new File("${basedir}/ulc-templates")
-    ant.copy(todir: "${basedir}/web-app") {
-        fileset(dir: "${basedir}/ulc-templates", excludes: "**/.svn/**, **/CVS/**")
+    // compile ${basedir}/src/ulc-client/common
+    try {
+        ant.javac(destdir: ulcClientClassesCommonDir,
+                encoding: 'UTF-8',
+                classpathref: classpathId,
+                fork: true) {
+            src(path: "${basedir}/src/ulc-client/common")
+        }
     }
-    ant.fileset(dir: "${basedir}/web-app").each {
-        String fileName = it.toString()
-        ant.replace(file: fileName) {
-            replacefilter(token: '@grails.app.name@', value: grailsAppName)
-            replacefilter(token: '@ulc.client.libs@', value: ULC_CLIENT_LIBS.join(','))
-            replacefilter(token: '@ulc.client.jars@', value: jnlpJars.join('\n'))
+    catch (Exception e) {
+        event("StatusFinal", ["Compilation error: ${e.message}"])
+        exit(1)
+    }
+
+    // compile ${basedir}/src/ulc-client/${alias}
+    forEachUlcApplication { alias, className ->
+        def ulcAppClassesDir = new File(ulcClientClassesDir, alias)
+        ulcAppClassesDir.mkdirs()
+        try {
+            ant.javac(destdir: ulcAppClassesDir,
+                    encoding: 'UTF-8',
+                    classpathref: classpathId,
+                    fork: true) {
+                src(path: "${basedir}/src/ulc-client/${alias}")
+            }
+        }
+        catch (Exception e) {
+            event("StatusFinal", ["Compilation error: ${e.message}"])
+            exit(1)
         }
     }
 
-    def dependencies = grailsSettings.runtimeDependencies
-    ULC_CLIENT_LIBS.each { libName ->
-        def f = dependencies.find{it.name == libName}
-        if(f) copyFile(f, true)
+    ant.copy(todir: classesDirPath) {
+        fileset(dir: "${basedir}/src/java", includes: '**/*.properties, **/*.xml')
     }
 }
 
+collectClientJars = {
+    def ulcClientlibs = []
+
+    def resolveReport = grailsSettings.dependencyManager.resolveDependencies('runtime')
+    resolveReport.output([[
+            output: {report, cacheMgr, options ->
+                output(report, cacheMgr, options, ulcClientlibs, resolveReport)
+            },
+            getName: {' UlcReportOutputter' }
+    ] as ReportOutputter
+    ] as ReportOutputter[], null, null)
+
+    File baseClientLibDir = new File(basedir, 'lib/ulc-client')
+    baseClientLibDir.eachFileRecurse(ANY) { file ->
+        if (!file.name.endsWith('jar')) return
+        if (!ulcClientlibs.grep {it.name == file.name}) ulcClientlibs << file
+    }
+
+    // TODO: collect $pluginHome/*/lib/ulc-client
+
+    ulcClientlibs
+}
+
 eventCreateWarStart = { warName, stagingDir ->
+    generateApplicationsFile("${stagingDir}/WEB-INF/resources")
+
+    def ulcClientLibs = collectClientJars()
+
     // remove duplicate jar files
-    ULC_CLIENT_LIBS.each { libName ->
-        ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libName}"), quiet: true, failonerror: false)
+    ulcClientLibs.each { libFile ->
+        ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libFile.name}"), quiet: true, failonerror: false)
     }
 
     // jar up license files
     ant.jar(destfile: "${stagingDir}/WEB-INF/lib/ulc-deployment-key.jar") {
         fileset(dir: ulcLicenseDir, includes: 'DEPLOYMENT-*.lic')
     }
+
+    File tmpLibs = new File(grailsSettings.projectWorkDir, 'tmp/ulc-libs')
+    File ulcLibsDir = new File("${stagingDir}/ulc-client-libs")
+    ulcLibsDir.mkdirs()
+
+    // copy local common client jar (if classes are available)
+    if (ulcClientClassesCommonDir.list()) {
+        File commonJar = new File("${stagingDir}/ulc-client-libs/${grailsAppName}-common-client.jar")
+        ant.jar(destfile: commonJar) {
+            fileset(dir: ulcClientClassesCommonDir, includes: '**/*.class')
+        }
+        copyPackAndSignFile(commonJar, tmpLibs)
+    }
+
+    // copy, sign and pack all client libs from deps
+    ulcClientLibs.each { libFile ->
+        copyPackAndSignFile(libFile, tmpLibs)
+    }
+
+    File ulcTemplatesDir = new File("${basedir}/ulc-templates")
+    forEachUlcApplication { applicationAlias, applicationClassName ->
+        def ulcAppClassesDir = new File(ulcClientClassesDir, applicationAlias)
+        File appJarDir = new File("${stagingDir}/ulc-client-libs/${applicationAlias}")
+        appJarDir.mkdirs()
+        File appJar = new File(appJarDir, "application-${applicationAlias}-client.jar")
+        ant.jar(destfile: appJar) {
+            fileset(dir: ulcAppClassesDir, includes: '**/*.class')
+        }
+        copyPackAndSignFile(appJar, tmpLibs)
+
+        def libs = []
+        tmpLibs.eachFileMatch(~/.*\.jar/) { f ->
+            libs << "        <jar href='ulc-client-libs/$f.name' main='false'/>"
+        }
+        new File(tmpLibs, applicationAlias).eachFileMatch(~/.*\.jar/) { f ->
+            if (f.name == "application-${applicationAlias}-client.jar") {
+                libs << "        <jar href='ulc-client-libs/${applicationAlias}/$f.name' main='true'/>"
+            } else {
+                libs << "        <jar href='ulc-client-libs/${applicationAlias}/$f.name' main='false'/>"
+            }
+        }
+
+        File applicationJnlp = new File(ulcTemplatesDir, "${applicationAlias}.jnlp")
+        if (!applicationJnlp.exists()) applicationJnlp = new File(ulcTemplatesDir, 'default.jnlp')
+        File destApplicationJnlp = new File("${stagingDir}/${applicationAlias}.jnlp")
+        ant.copy(file: applicationJnlp, tofile: destApplicationJnlp)
+        ant.replace(file: destApplicationJnlp) {
+            replacefilter(token: '@application.name@', value: applicationAlias[0].toUpperCase() + applicationAlias[1..-1])
+            replacefilter(token: '@application.alias@', value: applicationAlias)
+            replacefilter(token: '@application.launcher@', value: applicationClassName + 'JnlpLauncher')
+            replacefilter(token: '@ulc.client.libs@', value: libs.join('\n'))
+        }
+
+        applicationJnlp = new File(ulcTemplatesDir, "${applicationAlias}-applet.jnlp")
+        if (!applicationJnlp.exists()) applicationJnlp = new File(ulcTemplatesDir, 'default-applet.jnlp')
+        destApplicationJnlp = new File("${stagingDir}/${applicationAlias}-applet.jnlp")
+        ant.copy(file: applicationJnlp, tofile: destApplicationJnlp)
+        ant.replace(file: destApplicationJnlp) {
+            replacefilter(token: '@application.name@', value: applicationAlias[0].toUpperCase() + applicationAlias[1..-1])
+            replacefilter(token: '@application.alias@', value: applicationAlias)
+            replacefilter(token: '@application.launcher@', value: applicationClassName + 'AppletLauncher')
+            replacefilter(token: '@ulc.client.libs@', value: libs.join('\n'))
+        }
+    }
+    ant.copy(todir: ulcLibsDir, overwrite: true) {
+        fileset(dir: tmpLibs, includes: '**/*')
+    }
+    ant.delete(dir: tmpLibs, failonerror: false, quiet: true)
 }
 
-collectAllDeps = { d ->
-    ULC_CLIENT_LIBS << "${d.id.name}-${d.id.revision}.jar".toString()
-    d.getDependencies('','runtime').each { d2 ->
-        collectAllDeps(d2)
+collectAllDeps = { d, list, resolveReport ->
+    list << resolveReport.getArtifactsReports(d.id).find {it.type == 'jar'}.localFile
+    d.getDependencies('', 'runtime').each { d2 ->
+        collectAllDeps(d2, list, resolveReport)
     }
 }
 
-output = { report, cacheMgr, options ->
+output = { report, cacheMgr, options, list, resolveReport ->
     r = report.getConfigurationReport('runtime')
     List deps = []
 
     r.moduleIds.each { mid ->
         r.getNodes(mid).each { dep ->
             def mrid = dep.id
-            if(deps.contains(mrid)) return
+            if (deps.contains(mrid)) return
 
-            if(mrid.name =~ /.*-client/) {
-                deps << dep
-                collectAllDeps(dep)
+            if (mrid.name =~ /.*-client/) {
+                deps << mrid
+                collectAllDeps(dep, list, resolveReport)
             }
         }
-    }
-}
-
-void copyClientJars(boolean overwrite = false) {
-    event('BeforeCopyClientJars', [])
-    File clientLibDir = new File(basedir, 'lib/ulc-client')
-    if(clientLibDir.exists()) {
-        clientLibDir.eachFile {File f ->
-            if(f.name.endsWith('.jar')) {
-                ULC_CLIENT_LIBS << f.name
-                copyFile(f, overwrite)
-            }
-        }
-    }
-}
-
-void copyFile(File jarFile, boolean overwrite = false) {
-    File destFile = new File(ULC_CLIENT_LIBS_DIR, jarFile.name)
-    if(!destFile.exists() || jarFile.lastModified() > destFile.lastModified() || overwrite) {
-        ant.copy(file: jarFile, tofile: destFile, overwrite: true)
     }
 }
 
 private boolean compilingUlcPlugin() {
     getPluginDirForName('ulc')?.file?.canonicalPath == basedir
+}
+
+void copyPackAndSignFile(File srcFile, File destinationDir) {
+    ant.echo(message: "Copy and pack ${srcFile.absolutePath} to ${destinationDir}")
+    try {
+        File destFile = new File(destinationDir, srcFile.name)
+        String ancestor = srcFile.parentFile.parentFile.name
+        if (ancestor == 'ulc-client' || ancestor == 'ulc-client-libs') {
+            destFile = new File(destinationDir, "${srcFile.parentFile.name}/${srcFile.name}")
+        }
+
+        destFile.parentFile.mkdirs()
+        String packedJarFileName = "${destFile.absolutePath}.pack.gz"
+
+        JarFile jar = new JarFile(srcFile)
+
+        if (!jar.entries().any {!it.isDirectory()}) {
+            return
+        }
+
+        Pack200.Packer packer = Pack200.newPacker()
+        FileOutputStream fileOutputStream = new FileOutputStream(packedJarFileName)
+        packer.pack(jar, fileOutputStream)
+        fileOutputStream.close()
+
+        Unpacker unpacker = Pack200.newUnpacker()
+        File repackedJar = destFile
+        File firstPackedFile = new File(packedJarFileName)
+        JarOutputStream jarOut = new JarOutputStream(new FileOutputStream(repackedJar))
+        unpacker.unpack(firstPackedFile, jarOut)
+        jarOut.close()
+
+        signClientJar(destFile)
+
+        GZIPOutputStream gzout = new GZIPOutputStream(new FileOutputStream(packedJarFileName))
+        packer.pack(new JarFile(destFile), gzout)
+        gzout.close()
+    } catch (Exception e) {
+        GrailsUtil.printSanitizedStackTrace e
+        ant.fail("Catched Exception ${e.message} while handling  ${srcFile.absolutePath}.")
+    }
+}
+
+
+private def signClientJar(File jarFile) {
+    def buildConfig = BuildSettingsHolder.settings.config
+    String propsFile = buildConfig.grails.codesigning.propsfile ?: 'ulc-signatures/signjar.properties'
+    File signJarPropertiesFile = new File("${basedir}/${propsFile}")
+    if (signJarPropertiesFile.exists()) {
+        Properties signProperties = new Properties()
+        signProperties.load new FileInputStream(signJarPropertiesFile)
+
+        ant.signjar(
+                jar: jarFile.absolutePath,
+                destDir: jarFile.parentFile,
+                alias: signProperties["signjar.alias"],
+                keystore: "$basedir/ulc-signatures/${signProperties['signjar.keystore']}",
+                storepass: signProperties["signjar.storepass"],
+                keypass: signProperties["signjar.keypass"],
+                lazy: true
+        )
+    } else {
+        ant.echo(message: "No file ${propsFile} found. Tried ${signJarPropertiesFile.absolutePath}.")
+    }
 }

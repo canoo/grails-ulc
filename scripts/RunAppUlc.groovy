@@ -18,31 +18,73 @@
  * @author ulcteam
  */
 
-import org.codehaus.groovy.grails.web.context.GrailsConfigUtils
 import grails.util.Metadata
+import org.codehaus.groovy.grails.web.context.GrailsConfigUtils
+import com.ulcjava.base.development.DevelopmentRunner
+import java.util.concurrent.CountDownLatch
+import com.canoo.grails.ulc.server.ULCApplicationHolder
 
 includeTargets << grailsScript('Package')
 includeTargets << grailsScript('Bootstrap')
+includeTargets << grailsScript("_GrailsCreateArtifacts")
+includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
 
 ant.property(environment: 'env')
 
-target(runAppUlc: 'Run the ULC application in standalone mode') {
-    depends(checkVersion, configureProxy, packageApp, classpath)
+target(runAppUlc: 'Run an ULC application in standalone mode') {
+    depends(checkVersion, configureProxy, parseArguments)
 
+    generateApplicationsFile("${projectTargetDir}/resources")
+    
+    type = 'Application'
+    promptForName(type: type)
+    def name = argsMap['params'][0]
+    name = purgeRedundantArtifactSuffix(name, type).toLowerCase()
+
+    Properties props = new Properties()
+    props.load(new File("${projectTargetDir}/resources/ulc-applications.properties").toURL().openStream())
+    def ulcAppClassName = props.get(name)
+    if(!ulcAppClassName) {
+        println "Can't locate a suitable ULC Application definition for $name"
+        System.exit(1)
+    }
+    
+    packageApp()
+    
+    ulcClientClassesDir = new File(grailsSettings.projectWorkDir, 'ulc-client-classes')
+    ulcClientClassesCommonDir = new File(ulcClientClassesDir, 'common')
+    ulcClientClassesAppDir = new File(ulcClientClassesDir, name)
+    
     def urls = [classesDir.toURI().toURL(),
+                projectTargetDir.toURI().toURL(),
                 grailsSettings.resourcesDir.toURI().toURL(),
-                ulcLicenseDir.toURI().toURL()]
-
-    urls.each{rootLoader.addURL(it)}
+                ulcLicenseDir.toURI().toURL(),
+                ulcClientClassesCommonDir.toURI().toURL(),
+                ulcClientClassesAppDir.toURI().toURL()]
+    File baseClientLibDir = new File(basedir, 'lib/ulc-client')
+    baseClientLibDir.eachFileMatch(~/.*\.jar/) { jar -> urls << jar.toURI().toURL() }
+    File appClientLibDir = new File(baseClientLibDir, name)
+    appClientLibDir.eachFileMatch(~/.*\.jar/) { jar -> urls << jar.toURI().toURL() }
 
     classLoader = new URLClassLoader(urls as URL[], rootLoader)
     Thread.currentThread().setContextClassLoader(classLoader)
     loadApp()
     configureApp()
+    
+    System.setProperty('grails.ulc.application.alias', name)
+    ULCApplicationHolder.init(projectTargetDir)
 
     try {
         GrailsConfigUtils.executeGrailsBootstraps(grailsApp, appCtx, null)
-        grailsApp.classLoader.loadClass('com.canoo.grails.ulc.UlcGrailsRunner').start(appCtx)
+        String configurationFile = ulcAppClassName
+        configurationFile = '/' + configurationFile.replace('.' as char, '/' as char) + 'UlcConfiguration.xml'
+        def latch = new CountDownLatch(1)
+        def t = new Thread({
+            DevelopmentRunner.applicationConfigurationResource = configurationFile
+            DevelopmentRunner.run()
+        })
+        t.start()
+        latch.await()
     } catch (Exception e) {
         event('StatusFinal', ["Error starting application: ${e.message}"])
     }
