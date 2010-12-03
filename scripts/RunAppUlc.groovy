@@ -22,7 +22,6 @@ import grails.util.Metadata
 import org.codehaus.groovy.grails.web.context.GrailsConfigUtils
 import com.ulcjava.base.development.DevelopmentRunner
 import java.util.concurrent.CountDownLatch
-import com.canoo.grails.ulc.server.ULCApplicationHolder
 
 includeTargets << grailsScript('Package')
 includeTargets << grailsScript('Bootstrap')
@@ -56,6 +55,7 @@ target(runAppUlc: 'Run an ULC application in standalone mode') {
     ulcClientClassesAppDir = new File(ulcClientClassesDir, name)
     
     def urls = [classesDir.toURI().toURL(),
+                pluginClassesDir.toURI().toURL(),
                 projectTargetDir.toURI().toURL(),
                 grailsSettings.resourcesDir.toURI().toURL(),
                 ulcLicenseDir.toURI().toURL(),
@@ -72,7 +72,7 @@ target(runAppUlc: 'Run an ULC application in standalone mode') {
     configureApp()
     
     System.setProperty('grails.ulc.application.alias', name)
-    ULCApplicationHolder.init(projectTargetDir)
+    Class.forName("com.canoo.grails.ulc.server.ULCApplicationHolder", true, classLoader).init(projectTargetDir)
 
     try {
         GrailsConfigUtils.executeGrailsBootstraps(grailsApp, appCtx, null)

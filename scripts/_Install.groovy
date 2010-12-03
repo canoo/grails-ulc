@@ -18,7 +18,7 @@
  * @author ulcteam
  */
 
-includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
+includeTargets << new File("${ulcPluginDir}/scripts/InstallLicense.groovy")
 
 ant.mkdir(dir: "${basedir}/grails-app/ulc")
 ant.mkdir(dir: "${basedir}/lib/ulc-client")
@@ -35,7 +35,7 @@ ant.copy(todir: "${basedir}/ulc-templates") {
 }
 
 try {
-    checkLicense()
+    installLicense()
 }catch(Exception x) {
     System.exit(1)
 }

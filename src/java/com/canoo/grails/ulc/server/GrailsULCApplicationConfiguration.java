@@ -1,18 +1,17 @@
 package com.canoo.grails.ulc.server;
 
 import com.ulcjava.base.server.ApplicationConfiguration;
-import com.ulcjava.base.server.OpenApplicationConfiguration;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class GrailsULCApplicationConfiguration extends OpenApplicationConfiguration {
+public class GrailsULCApplicationConfiguration extends ApplicationConfiguration {
     private static final long serialVersionUID = 500782197706238987L;
     private static final Map<String, String> aliasToClassname = new LinkedHashMap<String, String>();
     private static final Map<String, GrailsULCApplicationConfiguration> aliasToConfig = new LinkedHashMap<String, GrailsULCApplicationConfiguration>();
     
-    synchronized public static final void setAliases(Map<String, String> aliases) {
+    synchronized public static void setAliases(Map<String, String> aliases) {
         if (aliases != null && !aliases.isEmpty()) {
             aliasToClassname.putAll(aliases);
         }
@@ -22,7 +21,7 @@ public class GrailsULCApplicationConfiguration extends OpenApplicationConfigurat
         return Collections.<String, String> unmodifiableMap(aliasToClassname);
     }
 
-    synchronized public static final String getApplicationAlias(String className) {
+    synchronized public static String getApplicationAlias(String className) {
         for (Map.Entry<String, String> entry : aliasToClassname.entrySet()) {
             if (entry.getValue().equals(className)) {
                 return entry.getKey();
@@ -31,7 +30,7 @@ public class GrailsULCApplicationConfiguration extends OpenApplicationConfigurat
         return null;
     }
 
-    synchronized public static final ApplicationConfiguration getInstance(String alias) {
+    synchronized public static ApplicationConfiguration getInstance(String alias) {
         GrailsULCApplicationConfiguration config = aliasToConfig.get(alias);
         if (config == null && aliasToClassname.containsKey(alias)) {
             config = new GrailsULCApplicationConfiguration(toResource(aliasToClassname.get(alias)));

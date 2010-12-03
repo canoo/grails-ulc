@@ -18,18 +18,15 @@
  * @author ulcteam
  */
 
-import org.apache.ivy.plugins.report.ReportOutputter
-import org.apache.ivy.util.filter.ArtifactTypeFilter
+import grails.util.BuildSettingsHolder
+import grails.util.GrailsUtil
 import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
 import java.util.jar.Pack200
 import java.util.jar.Pack200.Unpacker
 import java.util.zip.GZIPOutputStream
-import grails.util.GrailsUtil
-import grails.util.BuildSettingsHolder
+import org.apache.ivy.plugins.report.ReportOutputter
 import static groovy.io.FileType.ANY
-import grails.util.GrailsNameUtils
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 includeTargets << grailsScript('_GrailsCompile')
 includeTargets << grailsScript('_PluginDependencies')
@@ -58,6 +55,13 @@ eventPackagePluginEnd = {pluginName ->
     }
 }
 
+
+eventPackagingEnd = {
+    if (compilingUlcPlugin()) return
+    prepareApplication "$basedir/web-app"
+}
+
+
 eventCompileEnd = {
     if (compilingUlcPlugin()) return
 
@@ -68,7 +72,7 @@ eventCompileEnd = {
     ulcClientClassesCommonDir = new File(ulcClientClassesDir, 'common')
     ulcClientClassesCommonDir.mkdirs()
 
-    // collect al clinte-side libs
+    // collect all client-side libs
     def ulcClientLibs = collectClientJars()
     def classpathId = 'ulc.compile.classpath'
     ant.path(id: classpathId) {
@@ -114,6 +118,10 @@ eventCompileEnd = {
     }
 }
 
+
+
+
+
 collectClientJars = {
     def ulcClientlibs = []
 
@@ -137,7 +145,9 @@ collectClientJars = {
     ulcClientlibs
 }
 
-eventCreateWarStart = { warName, stagingDir ->
+
+
+private def prepareApplication(stagingDir) {
     generateApplicationsFile("${stagingDir}/WEB-INF/resources")
 
     def ulcClientLibs = collectClientJars()
@@ -145,11 +155,6 @@ eventCreateWarStart = { warName, stagingDir ->
     // remove duplicate jar files
     ulcClientLibs.each { libFile ->
         ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libFile.name}"), quiet: true, failonerror: false)
-    }
-
-    // jar up license files
-    ant.jar(destfile: "${stagingDir}/WEB-INF/lib/ulc-deployment-key.jar") {
-        fileset(dir: ulcLicenseDir, includes: 'DEPLOYMENT-*.lic')
     }
 
     File tmpLibs = new File(grailsSettings.projectWorkDir, 'tmp/ulc-libs')
