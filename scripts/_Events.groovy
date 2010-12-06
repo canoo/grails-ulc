@@ -36,6 +36,7 @@ import java.util.jar.Pack200.Unpacker
 import java.util.zip.GZIPOutputStream
 import org.apache.ivy.plugins.report.ReportOutputter
 import static groovy.io.FileType.ANY
+import org.apache.ivy.core.report.ResolveReport
 
 includeTargets << grailsScript('_GrailsCompile')
 includeTargets << grailsScript('_PluginDependencies')
@@ -54,6 +55,14 @@ eventCleanEnd = {
 
 }
 
+private def deleteClientClasses() {
+    ulcClientClassesDir = new File(grailsSettings.projectWorkDir, 'ulc-client-classes')
+    ulcClientLibsDir = new File("$basedir/web-app", "ulc-client-libs")
+    [ulcClientClassesDir, ulcClientLibsDir].each {dir ->
+        ant.delete(dir: dir, quiet: true, failonerror: false)
+    }
+}
+
 private def deleteJNLPFiles() {
     forEachUlcApplication { alias, className ->
         File applicationJnlpFile = new File("$basedir/web-app/${alias}-applet.jnlp")
@@ -61,14 +70,6 @@ private def deleteJNLPFiles() {
         [applicationJnlpFile, appletJnlpFile].each {file ->
             ant.delete(file: file, quiet: true, failonerror: false)
         }
-    }
-}
-
-private def deleteClientClasses() {
-    ulcClientClassesDir = new File(grailsSettings.projectWorkDir, 'ulc-client-classes')
-    ulcClientLibsDir = new File("$basedir/web-app", "ulc-client-libs")
-    [ulcClientClassesDir, ulcClientLibsDir].each {dir ->
-        ant.delete(dir: dir, quiet: true, failonerror: false)
     }
 }
 
@@ -149,48 +150,67 @@ eventCompileEnd = {
     }
 }
 
+eventCreateWarStart = { warName, stagingDir ->
+    def ulcClientLibs = collectClientJars()
+    ulcClientLibs.each { libFile ->
+        ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libFile.name}"), quiet: true, failonerror: false)
+    }
+}
 
 
 
 
-collectClientJars = {
+private def collectAllDependencies(List jarFiles, dependency, resolveReport) {
+    jarFiles << resolveReport.getArtifactsReports(dependency.id).find {it.type == 'jar'}.localFile
+    dependency.getDependencies('', 'runtime').each { transitiveDependency ->
+        collectAllDependencies(jarFiles, transitiveDependency, resolveReport)
+    }
+}
+
+private def fillJarFileList(List jarFiles, report, resolveReport) {
+    def runtimeReport = report.getConfigurationReport('runtime')
+    List processedDependencies = []
+
+    runtimeReport.moduleIds.each { moduleId ->
+        runtimeReport.getNodes(moduleId).each { dependencyNode ->
+            def mrid = dependencyNode.id
+            if (processedDependencies.contains(mrid)) return
+
+            if (mrid.name =~ /.*-client/) {
+                processedDependencies << mrid
+                collectAllDependencies(jarFiles, dependencyNode, resolveReport)
+            }
+        }
+    }
+}
+
+private def collectClientJars() {
     def ulcClientlibs = []
 
     def resolveReport = grailsSettings.dependencyManager.resolveDependencies('runtime')
     resolveReport.output([[
             output: {report, cacheMgr, options ->
-                output(report, cacheMgr, options, ulcClientlibs, resolveReport)
+                fillJarFileList(ulcClientlibs, report, resolveReport)
             },
             getName: {' UlcReportOutputter' }
     ] as ReportOutputter
     ] as ReportOutputter[], null, null)
 
     File baseClientLibDir = new File(basedir, 'lib/ulc-client')
-    baseClientLibDir.eachFileRecurse(ANY) { file ->
-        if (!file.name.endsWith('jar')) return
-        if (!ulcClientlibs.grep {it.name == file.name}) ulcClientlibs << file
-    }
+    baseClientLibDir.eachFileRecurse() {if(it.name.endsWith(".jar")) ulcClientlibs << it }
 
-    // TODO: collect $pluginHome/*/lib/ulc-client
-
-    ulcClientlibs
+//    ulcClientlibs.unique{it.name} // jars with same name are only collected once. Do we want this?
+    return ulcClientlibs
 }
-
 
 
 private def prepareApplication(stagingDir) {
     generateApplicationsFile("${stagingDir}/WEB-INF/resources")
 
-    def ulcClientLibs = collectClientJars()
 
-    // remove duplicate jar files
-    ulcClientLibs.each { libFile ->
-        ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libFile.name}"), quiet: true, failonerror: false)
-    }
-
-    File tmpLibs = new File(grailsSettings.projectWorkDir, 'tmp/ulc-libs')
-    File ulcLibsDir = new File("${stagingDir}/ulc-client-libs")
-    ulcLibsDir.mkdirs()
+    File tmpUlcClientLibDir = new File(grailsSettings.projectWorkDir, 'tmp/ulc-client-libs')
+    File ulcClientLibsDir = new File("${stagingDir}/ulc-client-libs")
+    ulcClientLibsDir.mkdirs()
 
     // copy local common client jar (if classes are available)
     if (ulcClientClassesCommonDir.list()) {
@@ -198,96 +218,71 @@ private def prepareApplication(stagingDir) {
         ant.jar(destfile: commonJar) {
             fileset(dir: ulcClientClassesCommonDir, includes: '**/*.class')
         }
-        copyPackAndSignFile(commonJar, tmpLibs, ulcLibsDir)
+        copyPackAndSignFile(commonJar, tmpUlcClientLibDir, ulcClientLibsDir)
     }
 
-    // copy, sign and pack all client libs from deps
-    ulcClientLibs.each { libFile ->
-        copyPackAndSignFile(libFile, tmpLibs, ulcLibsDir)
+    // copy, sign and pack all client libs from configured dependencies (BuildConfig.groovy)
+    collectClientJars().each { libFile ->
+        copyPackAndSignFile(libFile, tmpUlcClientLibDir, ulcClientLibsDir)
     }
 
     File ulcTemplatesDir = new File("${basedir}/ulc-templates")
     forEachUlcApplication {String applicationAlias, String applicationClassName ->
-        def ulcAppClassesDir = new File(ulcClientClassesDir, applicationAlias)
-        File appJarDir = new File("${stagingDir}/ulc-client-libs/${applicationAlias}")
-        appJarDir.mkdirs()
-        File appJar = new File(appJarDir, "application-${applicationAlias}-client.jar")
+        def aliasClientClassesDir = new File(ulcClientClassesDir, applicationAlias)
+        File aliasClientJarDir = new File("${stagingDir}/ulc-client-libs/${applicationAlias}")
+        aliasClientJarDir.mkdirs()
+        File aliasClientJar = new File(aliasClientJarDir, "application-${applicationAlias}-client.jar")
 
 
-        ant.uptodate(property: "jarUpToDate", targetfile: appJar) {
-            srcfiles(dir: ulcAppClassesDir, includes: '**/*.class')
+        ant.uptodate(property: "aliasClientJarUpToDate", targetfile: aliasClientJar) {
+            srcfiles(dir: aliasClientClassesDir, includes: '**/*.class')
         }
 
-        if (!ant.project.properties.jarUpToDate) {
-            ant.jar(destfile: appJar) {
-                fileset(dir: ulcAppClassesDir, includes: '**/*.class')
+        if (!ant.project.properties.aliasClientJarUpToDate) {
+            ant.jar(destfile: aliasClientJar) {
+                fileset(dir: aliasClientClassesDir, includes: '**/*.class')
             }
         }
-        copyPackAndSignFile(appJar, tmpLibs, ulcLibsDir)
+        copyPackAndSignFile(aliasClientJar, tmpUlcClientLibDir, ulcClientLibsDir)
 
-        def libs = []
-        tmpLibs.eachFileMatch(~/.*\.jar/) { f ->
-            libs << "        <jar href='ulc-client-libs/$f.name' main='false'/>"
-        }
-        new File(tmpLibs, applicationAlias).eachFileMatch(~/.*\.jar/) { f ->
-            if (f.name == "application-${applicationAlias}-client.jar") {
-                libs << "        <jar href='ulc-client-libs/${applicationAlias}/$f.name' main='true'/>"
-            } else {
-                libs << "        <jar href='ulc-client-libs/${applicationAlias}/$f.name' main='false'/>"
-            }
-        }
-
-        File applicationJnlp = new File(ulcTemplatesDir, "${applicationAlias}.jnlp")
-        if (!applicationJnlp.exists()) applicationJnlp = new File(ulcTemplatesDir, 'default.jnlp')
-        File destApplicationJnlp = new File("${stagingDir}/${applicationAlias}.jnlp")
-        ant.copy(file: applicationJnlp, tofile: destApplicationJnlp)
-        ant.replace(file: destApplicationJnlp) {
-            replacefilter(token: '@application.name@', value: applicationAlias[0].toUpperCase() + applicationAlias[1..-1])
-            replacefilter(token: '@application.alias@', value: applicationAlias)
-            replacefilter(token: '@application.launcher@', value: applicationClassName + 'JnlpLauncher')
-            replacefilter(token: '@ulc.client.libs@', value: libs.join('\n'))
-        }
-
-        applicationJnlp = new File(ulcTemplatesDir, "${applicationAlias}-applet.jnlp")
-        if (!applicationJnlp.exists()) applicationJnlp = new File(ulcTemplatesDir, 'default-applet.jnlp')
-        destApplicationJnlp = new File("${stagingDir}/${applicationAlias}-applet.jnlp")
-        ant.copy(file: applicationJnlp, tofile: destApplicationJnlp)
-        ant.replace(file: destApplicationJnlp) {
-            replacefilter(token: '@application.name@', value: applicationAlias[0].toUpperCase() + applicationAlias[1..-1])
-            replacefilter(token: '@application.alias@', value: applicationAlias)
-            replacefilter(token: '@application.launcher@', value: applicationClassName + 'AppletLauncher')
-            replacefilter(token: '@ulc.client.libs@', value: libs.join('\n'))
-        }
+        generateJnlpFiles(tmpUlcClientLibDir, applicationAlias, ulcTemplatesDir, stagingDir, applicationClassName)
     }
-    ant.copy(todir: ulcLibsDir, overwrite: true) {
-        fileset(dir: tmpLibs, includes: '**/*')
+
+
+    ant.copy(todir: ulcClientLibsDir, overwrite: true) {
+        fileset(dir: tmpUlcClientLibDir, includes: '**/*')
     }
-    ant.delete(dir: tmpLibs, failonerror: false, quiet: true)
+    ant.delete(dir: tmpUlcClientLibDir, failonerror: false, quiet: true)
 }
 
-collectAllDeps = { d, list, resolveReport ->
-    list << resolveReport.getArtifactsReports(d.id).find {it.type == 'jar'}.localFile
-    d.getDependencies('', 'runtime').each { d2 ->
-        collectAllDeps(d2, list, resolveReport)
+private def generateJnlpFiles(File tmpUlcClientLibDir, String applicationAlias, File ulcTemplatesDir, String stagingDir, String applicationClassName) {
+    def libs = []
+    tmpUlcClientLibDir.eachFileMatch(~/.*\.jar/) { tmpClientJar ->
+        libs << "        <jar href='ulc-client-libs/$tmpClientJar.name' main='false'/>"
+    }
+    new File(tmpUlcClientLibDir, applicationAlias).eachFileMatch(~/.*\.jar/) { tmpClientAliasJar ->
+        boolean mainJar = (tmpClientAliasJar.name == "application-${applicationAlias}-client.jar")
+        libs << "        <jar href='ulc-client-libs/${applicationAlias}/$tmpClientAliasJar.name' main='$mainJar'/>"
+    }
+
+    writeJnlpFile(ulcTemplatesDir, applicationAlias, stagingDir, applicationClassName, 'JnlpLauncher', "", libs)
+    writeJnlpFile(ulcTemplatesDir, applicationAlias, stagingDir, applicationClassName, 'AppletLauncher', "-applet", libs)
+}
+
+private def writeJnlpFile(File ulcTemplatesDir, String applicationAlias, String stagingDir, String applicationClassName, String launcher, String suffix,def libs) {
+    File aliasJnlpTemplate = new File(ulcTemplatesDir, "${applicationAlias}${suffix}.jnlp")
+    if (!aliasJnlpTemplate.exists()) aliasJnlpTemplate = new File(ulcTemplatesDir, "default${suffix}.jnlp")
+
+    File aliasJnlpFile = new File("${stagingDir}/${applicationAlias}${suffix}.jnlp")
+    ant.copy(file: aliasJnlpTemplate, tofile: aliasJnlpFile)
+    ant.replace(file: aliasJnlpFile) {
+        replacefilter(token: '@application.name@', value: applicationAlias[0].toUpperCase() + applicationAlias[1..-1])
+        replacefilter(token: '@application.alias@', value: applicationAlias)
+        replacefilter(token: '@application.launcher@', value: applicationClassName + launcher)
+        replacefilter(token: '@ulc.client.libs@', value: libs.join('\n'))
     }
 }
 
-output = { report, cacheMgr, options, list, resolveReport ->
-    r = report.getConfigurationReport('runtime')
-    List deps = []
-
-    r.moduleIds.each { mid ->
-        r.getNodes(mid).each { dep ->
-            def mrid = dep.id
-            if (deps.contains(mrid)) return
-
-            if (mrid.name =~ /.*-client/) {
-                deps << mrid
-                collectAllDeps(dep, list, resolveReport)
-            }
-        }
-    }
-}
 
 private boolean compilingUlcPlugin() {
     getPluginDirForName('ulc')?.file?.canonicalPath == basedir
