@@ -32,9 +32,6 @@ includeTargets << grailsScript('_GrailsCompile')
 includeTargets << grailsScript('_PluginDependencies')
 includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
 
-if (!compilingUlcPlugin()) {
-    includeTargets << new File("${ulcPluginDir}/scripts/_Ulc.groovy")
-}
 
 eventSetClasspath = { cl ->
     if (compilingUlcPlugin()) return
@@ -58,6 +55,12 @@ eventPackagePluginEnd = {pluginName ->
 
 eventPackagingEnd = {
     if (compilingUlcPlugin()) return
+
+    if(System.getProperty("runMode") == "runAppUlc") {
+        println "Skipping prepareApplication."
+        return
+    }
+
     prepareApplication "$basedir/web-app"
 }
 
@@ -167,24 +170,32 @@ private def prepareApplication(stagingDir) {
         ant.jar(destfile: commonJar) {
             fileset(dir: ulcClientClassesCommonDir, includes: '**/*.class')
         }
-        copyPackAndSignFile(commonJar, tmpLibs)
+        copyPackAndSignFile(commonJar, tmpLibs,ulcLibsDir)
     }
 
     // copy, sign and pack all client libs from deps
     ulcClientLibs.each { libFile ->
-        copyPackAndSignFile(libFile, tmpLibs)
+        copyPackAndSignFile(libFile, tmpLibs,ulcLibsDir)
     }
 
     File ulcTemplatesDir = new File("${basedir}/ulc-templates")
-    forEachUlcApplication { applicationAlias, applicationClassName ->
+    forEachUlcApplication {String applicationAlias, String applicationClassName ->
         def ulcAppClassesDir = new File(ulcClientClassesDir, applicationAlias)
         File appJarDir = new File("${stagingDir}/ulc-client-libs/${applicationAlias}")
         appJarDir.mkdirs()
         File appJar = new File(appJarDir, "application-${applicationAlias}-client.jar")
-        ant.jar(destfile: appJar) {
-            fileset(dir: ulcAppClassesDir, includes: '**/*.class')
+
+
+        ant.uptodate(property:"jarUpToDate", targetfile:appJar) {
+            srcfiles(dir: ulcAppClassesDir, includes: '**/*.class')
         }
-        copyPackAndSignFile(appJar, tmpLibs)
+
+        if(!ant.project.properties.jarUpToDate) {
+            ant.jar(destfile: appJar) {
+                fileset(dir: ulcAppClassesDir, includes: '**/*.class')
+            }
+        }
+        copyPackAndSignFile(appJar, tmpLibs,ulcLibsDir)
 
         def libs = []
         tmpLibs.eachFileMatch(~/.*\.jar/) { f ->
@@ -254,13 +265,15 @@ private boolean compilingUlcPlugin() {
     getPluginDirForName('ulc')?.file?.canonicalPath == basedir
 }
 
-void copyPackAndSignFile(File srcFile, File destinationDir) {
+void copyPackAndSignFile(File srcFile, File destinationDir, File deploymentDir) {
     ant.echo(message: "Copy and pack ${srcFile.absolutePath} to ${destinationDir}")
     try {
-        File destFile = new File(destinationDir, srcFile.name)
-        String ancestor = srcFile.parentFile.parentFile.name
-        if (ancestor == 'ulc-client' || ancestor == 'ulc-client-libs') {
-            destFile = new File(destinationDir, "${srcFile.parentFile.name}/${srcFile.name}")
+        File destFile = resolveDestinationFile(destinationDir, srcFile)
+        File deployedFile = resolveDestinationFile(deploymentDir, srcFile)
+
+        if(deployedFile.exists() && deployedFile.lastModified() > srcFile.lastModified()) {
+            println "Skipping copyPackAndSignFile for $srcFile.name as it is up to date."
+            return
         }
 
         destFile.parentFile.mkdirs()
@@ -293,6 +306,15 @@ void copyPackAndSignFile(File srcFile, File destinationDir) {
         GrailsUtil.printSanitizedStackTrace e
         ant.fail("Catched Exception ${e.message} while handling  ${srcFile.absolutePath}.")
     }
+}
+
+private File resolveDestinationFile(File destinationDir, File srcFile) {
+    File destFile = new File(destinationDir, srcFile.name)
+    String ancestor = srcFile.parentFile.parentFile.name
+    if (ancestor == 'ulc-client' || ancestor == 'ulc-client-libs') {
+        destFile = new File(destinationDir, "${srcFile.parentFile.name}/${srcFile.name}")
+    }
+    return destFile
 }
 
 

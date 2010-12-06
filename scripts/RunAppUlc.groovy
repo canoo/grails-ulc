@@ -32,7 +32,7 @@ ant.property(environment: 'env')
 
 target(runAppUlc: 'Run an ULC application in standalone mode') {
     depends(checkVersion, configureProxy, parseArguments)
-
+    System.setProperty("runMode", "runAppUlc")
     generateApplicationsFile("${projectTargetDir}/resources")
     
     type = 'Application'
