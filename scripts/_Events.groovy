@@ -15,6 +15,15 @@
  */
 
 /**
+ * The general approach is to hook into the grails commands such that
+ * the user can do 'grails run-app' and the likes without worrying about
+ * the ulc artifacts.
+ *
+ * Uptodate checks are performed on the generated artifacts. Note that this
+ * may lead to stale *.jnlp (and possibly more) files - no guarantees given.
+ * Therefore, you should do 'grails clean'
+ * before  producing production-ready war files.
+ *
  * @author ulcteam
  */
 
@@ -40,8 +49,27 @@ eventSetClasspath = { cl ->
 }
 
 eventCleanEnd = {
+    deleteClientClasses()
+    deleteJNLPFiles()
+
+}
+
+private def deleteJNLPFiles() {
+    forEachUlcApplication { alias, className ->
+        File applicationJnlpFile = new File("$basedir/web-app/${alias}-applet.jnlp")
+        File appletJnlpFile = new File("$basedir/web-app/${alias}.jnlp")
+        [applicationJnlpFile, appletJnlpFile].each {file ->
+            ant.delete(file: file, quiet: true, failonerror: false)
+        }
+    }
+}
+
+private def deleteClientClasses() {
     ulcClientClassesDir = new File(grailsSettings.projectWorkDir, 'ulc-client-classes')
-    if (ulcClientClassesDir.exists()) ant.delete(dir: ulcClientClassesDir, quiet: false, failonerror: false)
+    ulcClientLibsDir = new File("$basedir/web-app", "ulc-client-libs")
+    [ulcClientClassesDir, ulcClientLibsDir].each {dir ->
+        ant.delete(dir: dir, quiet: true, failonerror: false)
+    }
 }
 
 eventPackagePluginEnd = {pluginName ->
@@ -56,7 +84,7 @@ eventPackagePluginEnd = {pluginName ->
 eventPackagingEnd = {
     if (compilingUlcPlugin()) return
 
-    if(System.getProperty("runMode") == "runAppUlc") {
+    if (System.getProperty("runMode") == "runAppUlc") {
         println "Skipping prepareApplication."
         return
     }
@@ -170,12 +198,12 @@ private def prepareApplication(stagingDir) {
         ant.jar(destfile: commonJar) {
             fileset(dir: ulcClientClassesCommonDir, includes: '**/*.class')
         }
-        copyPackAndSignFile(commonJar, tmpLibs,ulcLibsDir)
+        copyPackAndSignFile(commonJar, tmpLibs, ulcLibsDir)
     }
 
     // copy, sign and pack all client libs from deps
     ulcClientLibs.each { libFile ->
-        copyPackAndSignFile(libFile, tmpLibs,ulcLibsDir)
+        copyPackAndSignFile(libFile, tmpLibs, ulcLibsDir)
     }
 
     File ulcTemplatesDir = new File("${basedir}/ulc-templates")
@@ -186,16 +214,16 @@ private def prepareApplication(stagingDir) {
         File appJar = new File(appJarDir, "application-${applicationAlias}-client.jar")
 
 
-        ant.uptodate(property:"jarUpToDate", targetfile:appJar) {
+        ant.uptodate(property: "jarUpToDate", targetfile: appJar) {
             srcfiles(dir: ulcAppClassesDir, includes: '**/*.class')
         }
 
-        if(!ant.project.properties.jarUpToDate) {
+        if (!ant.project.properties.jarUpToDate) {
             ant.jar(destfile: appJar) {
                 fileset(dir: ulcAppClassesDir, includes: '**/*.class')
             }
         }
-        copyPackAndSignFile(appJar, tmpLibs,ulcLibsDir)
+        copyPackAndSignFile(appJar, tmpLibs, ulcLibsDir)
 
         def libs = []
         tmpLibs.eachFileMatch(~/.*\.jar/) { f ->
@@ -271,7 +299,7 @@ void copyPackAndSignFile(File srcFile, File destinationDir, File deploymentDir) 
         File destFile = resolveDestinationFile(destinationDir, srcFile)
         File deployedFile = resolveDestinationFile(deploymentDir, srcFile)
 
-        if(deployedFile.exists() && deployedFile.lastModified() > srcFile.lastModified()) {
+        if (deployedFile.exists() && deployedFile.lastModified() > srcFile.lastModified()) {
             println "Skipping copyPackAndSignFile for $srcFile.name as it is up to date."
             return
         }
