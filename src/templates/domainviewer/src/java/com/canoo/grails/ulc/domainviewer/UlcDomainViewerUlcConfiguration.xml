@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ulc:ULCApplicationConfiguration xmlns:ulc='http://www.canoo.com/ulc' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.canoo.com/ulc/ULCApplicationConfiguration.xsd'>
+  <ulc:applicationClassName>com.canoo.grails.ulc.domainviewer.UlcDomainViewerApplication</ulc:applicationClassName>
+  <ulc:serverSessionProviderClassName>com.canoo.grails.ulc.server.GrailsULCSessionProvider</ulc:serverSessionProviderClassName>
+  <ulc:clientResources>
+    <ulc:directory>/ulc-client-libs</ulc:directory>
+    <ulc:pattern>*.jar</ulc:pattern>
+  </ulc:clientResources>
+</ulc:ULCApplicationConfiguration>
