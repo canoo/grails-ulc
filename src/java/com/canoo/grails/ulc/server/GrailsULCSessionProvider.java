@@ -6,6 +6,6 @@ import com.ulcjava.base.server.ULCSession;
 public class GrailsULCSessionProvider extends DefaultSessionProvider {
     @Override
     public ULCSession createSession() {
-        return new GrailsULCSession(getApplicationClassName(), getContainerServices());
+        return GrailsULCSessionInitializer.createSession(getApplicationClassName(), getContainerServices());
     }
 }

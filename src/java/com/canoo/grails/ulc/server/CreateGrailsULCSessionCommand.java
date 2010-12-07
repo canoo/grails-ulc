@@ -22,34 +22,9 @@ public class CreateGrailsULCSessionCommand extends CreateSessionCommand {
         String alias = GrailsULCApplicationConfiguration.getApplicationAlias(applicationClassName);
         ApplicationConfiguration config = GrailsULCApplicationConfiguration.getInstance(alias);
         if (config != null) {
-            return configureSession(config.getSessionProvider(containerServices).createSession());
+            return config.getSessionProvider(containerServices).createSession();
         }
-        return configureSession(new GrailsULCSession(applicationClassName, containerServices));
+        return GrailsULCSessionInitializer.createSession(applicationClassName, containerServices);
     }
     
-    private ULCSession configureSession(ULCSession session) {
-        session.addRoundTripListener(new IRoundTripListener() {
-            private ApplicationContext getApplicationContext() {
-                return ApplicationHolder.getApplication().getMainContext();
-            }
-            
-            @Override
-            public void roundTripWillEnd(RoundTripEvent event) {
-                for (PersistenceContextInterceptor interceptor : getApplicationContext()
-                        .getBeansOfType(PersistenceContextInterceptor.class).values()) {
-                    interceptor.flush();
-                    interceptor.destroy();
-                }
-            }
-            
-            @Override
-            public void roundTripDidStart(RoundTripEvent event) {
-                for (PersistenceContextInterceptor interceptor : getApplicationContext()
-                        .getBeansOfType(PersistenceContextInterceptor.class).values()) {
-                    interceptor.init();
-                }
-            }
-        });
-        return session;
-    }
 }
