@@ -70,9 +70,9 @@ command
     formatted &lt;nameOfYourApplication&gt;.
     The alias is also used to group the resource provided by each single ULC application.
     Such resources can be:
-      - Application specific launcher classes (grails-app/src/ulc-client/&lt;alias&gt;)
-      - Clientside jar files (lib/ulc-client/&lt;alias&gt;)
-      - Application specific template for the JNLP-file generation (ulc-templates/&lt;alias&gt;.jnlp`)
+      - Application specific launcher classes (grails-app/src/ulc-client/<alias>)
+      - Clientside jar files (lib/ulc-client/<alias>)
+      - Application specific template for the JNLP-file generation (ulc-templates/<alias>.jnlp`)
 
 4. Locate the generated application class file under *src/groovy*. This is the
 entry point for your newly created ULC application. The following snippet
