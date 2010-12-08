@@ -67,12 +67,12 @@ command
 
     A webapp application may contain several ULC applications. Each single 
     ULC application is referred by an alias which is created from the lowercase
-    formatted <nameOfyourApplication>.
+    formatted &lt;nameOfYourApplication&gt;.
     The alias is also used to group the resource provided by each single ULC application.
     Such resources can be:
-      - Application specific launcher classes (`grails-app/src/ulc-client/<alias>`)
-      - Clientside jar files (`lib/ulc-client/<alias>`)
-      - Application specific template for the JNLP-file generation (`ulc-templates/<alias>.jnlp`)
+      - Application specific launcher classes (grails-app/src/ulc-client/&lt;alias&gt;)
+      - Clientside jar files (lib/ulc-client/&lt;alias&gt;)
+      - Application specific template for the JNLP-file generation (ulc-templates/&lt;alias&gt;.jnlp`)
 
 4. Locate the generated application class file under *src/groovy*. This is the
 entry point for your newly created ULC application. The following snippet
@@ -114,7 +114,7 @@ Running the application in development mode is as easy as invoking
 
     This command will package the application and bootstrap it using a special
 launcher. Running the application in production mode should be done by packaging
-the whole application in a war; for this grails offers two choices once more:
+the whole application in a war. For this grails offers two choices once more:
 
         grails run-war
 
