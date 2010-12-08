@@ -50,18 +50,29 @@ system. If such a license is found then you're good to go to the next step. If
 no license is found the the plugin will ask you for an access token used to
 download a personalized license. If you do not have an access token then hit
 enter to continue, the plugin will resort to downloading an evaluation license.
+The required runtime license is automatically generated for you when using the
+commands mentioned below. You can enforce the runtime license generation with the
+command:
+
+         grails install-license
+         
+   If you habe already used an older version of the plugin, or want to upgrade
+   your license this command is recommended.
+
 
 3. Create an ULC application. This step is performed by invoking the following
 command
 
         grails create-app-ulc <nameOfYourApplication>
 
-    A webapp application may contain several ULC applications. However, the default
-template and configuration provided by this plugin are set up for a single ULC
-application. This is to take advantage of ULC's application framework. Of course,
-this is just for your convenience. In case you require more than one ULC
-application running within the same Grails application just follow the guidelines
-in the enclosed PDF documents (*ULCApplicationDevelopmentGuide.pdf*).
+    A webapp application may contain several ULC applications. Each single 
+    ULC application is referred by an alias which is created from the lowercase
+    formatted <nameOfyourApplication>.
+    The alias is also used to group the resource provided by each single ULC application.
+    Such resources can be:
+      - Application specific launcher classes (`grails-app/src/ulc-client/<alias>`)
+      - Clientside jar files (`lib/ulc-client/<alias>`)
+      - Application specific template for the JNLP-file generation (`ulc-templates/<alias>.jnlp`)
 
 4. Locate the generated application class file under *src/groovy*. This is the
 entry point for your newly created ULC application. The following snippet
@@ -114,6 +125,11 @@ the whole application in a war; for this grails offers two choices once more:
     Packages the application as a war. You're tasked with deploying this file to an
 application server of your choice.
 
+6. To purge all created artifacts you can use the command
+
+        grails clean
+
+
 This is all that you need to get started developing an ULC application for Grails.
 You will find more information about ULC and available components by browsing
 the PDF files that are bundled with the plugin.
@@ -122,3 +138,22 @@ forums can be reached by pointing your browser to
 <http://www.canoo.com/ulc>
 
 Happy coding!
+
+Demo application
+================
+
+You can install an example ULC application for browsing your domain objects.
+
+      grails install-domain-viewer
+   
+   A complete ULC application with the alias 'ulcdomainviewer' will be generated
+   into your grails application. For running this application you can use
+   
+      grails run-app-ulc ulcdomainviewer
+   
+   or start you grails application an navigate your browser to 
+
+    .../your-appname/ulcdomainviewer.jnlp
+
+   TODO: The demo application will not be removed if you decide to uninstall the ulc plugin.
+   You have to delete the artifacts manually!
