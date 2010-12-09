@@ -12,12 +12,13 @@ class @artifact.name@ extends AbstractApplication {
     }
 
     protected ULCRootPane createRootPane() {
-        builder.frame(title: '@artifact.name@', visible: true,
+        builder.frame(title: '@artifact.name@', size:[640,480],
             defaultCloseOperation: ULCFrame.TERMINATE_ON_CLOSE)
     }
 
     void start() {
         ULCRootPane rootPane = createRootPane()
         rootPane.add(createMainContent())
+        rootPane.visible = true
     }
 }

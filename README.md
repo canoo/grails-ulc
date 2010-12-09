@@ -125,6 +125,11 @@ the whole application in a war. For this grails offers two choices once more:
     Packages the application as a war. You're tasked with deploying this file to an
 application server of your choice.
 
+   To start your ULC application either point your browser to "grailsApp/&lt;alias&gt;.jnlp"
+   or create a gsp with the ulc applet tag provided by the included TagLib
+   
+         <ulc:applet name='<alias>' />
+
 6. To purge all created artifacts you can use the command
 
         grails clean
@@ -154,6 +159,10 @@ You can install an example ULC application for browsing your domain objects.
    or start you grails application an navigate your browser to 
 
     .../your-appname/ulcdomainviewer.jnlp
+    
+   or point your browser to
+   
+    .../your-appname/domainviewer/ulcdomainviewer.gsp
 
    TODO: The demo application will not be removed if you decide to uninstall the ulc plugin.
    You have to delete the artifacts manually!

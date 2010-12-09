@@ -35,12 +35,13 @@ class UlcDomainViewerApplication extends AbstractApplication {
     }
 
     protected ULCRootPane createRootPane() {
-        builder.frame(title: 'UlcDomainViewer', visible: true,size:[640,480],
+        builder.frame(title: 'UlcDomainViewer', size:[640,480],
                 defaultCloseOperation: ULCFrame.TERMINATE_ON_CLOSE)
     }
 
     void start() {
         ULCRootPane rootPane = createRootPane()
         rootPane.add(createMainContent())
+        rootPane.visible = true
     }
 }
