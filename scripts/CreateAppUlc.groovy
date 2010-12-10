@@ -42,7 +42,7 @@ target(main: "Creates a new ULC application along with its helper files.") {
     }
     
     createArtifact(name: name,
-        suffix: '',
+        suffix: 'CoderRegistryHolder',
         type: 'CoderRegistryHolder',
         path: 'grails-app/ulc')
     ant.replace(file: artifactFile,
