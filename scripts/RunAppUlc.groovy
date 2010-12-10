@@ -40,6 +40,8 @@ target(runAppUlc: 'Run an ULC application in standalone mode') {
     def name = argsMap['params'][0]
     name = purgeRedundantArtifactSuffix(name, type).toLowerCase()
 
+    boolean useGui = argsMap.useGui ?: false
+
     Properties props = new Properties()
     props.load(new File("${projectTargetDir}/resources/ulc-applications.properties").toURL().openStream())
     def ulcAppClassName = props.get(name)
@@ -84,6 +86,7 @@ target(runAppUlc: 'Run an ULC application in standalone mode') {
         def latch = new CountDownLatch(1)
         def t = new Thread({
             DevelopmentRunner.applicationConfigurationResource = configurationFile
+            DevelopmentRunner.useGui = useGui
             DevelopmentRunner.run()
         })
         t.start()
