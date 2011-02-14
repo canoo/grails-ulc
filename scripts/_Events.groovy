@@ -161,9 +161,12 @@ eventCreateWarStart = { warName, stagingDir ->
 
 
 private def collectAllDependencies(List jarFiles, dependency, resolveReport) {
-    jarFiles << resolveReport.getArtifactsReports(dependency.id).find {it.type == 'jar'}.localFile
-    dependency.getDependencies('', 'runtime').each { transitiveDependency ->
-        collectAllDependencies(jarFiles, transitiveDependency, resolveReport)
+    def jarFile = resolveReport.getArtifactsReports(dependency.id).find {it.type == 'jar'}
+    if(jarFile) {
+        jarFiles << jarFile.localFile
+        dependency.getDependencies('', 'runtime').each { transitiveDependency ->
+            collectAllDependencies(jarFiles, transitiveDependency, resolveReport)
+        }
     }
 }
 
