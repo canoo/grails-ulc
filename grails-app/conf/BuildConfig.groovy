@@ -3,7 +3,7 @@ grails.project.test.class.dir = "target/test-classes"
 grails.project.test.reports.dir = "target/test-reports"
 //grails.project.war.file = "target/${appName}-${appVersion}.war"
 
-ulcVersion = '7.0.1.u1b-r19027'
+ulcVersion = '7.0.2'
 
 grails.project.dependency.resolution = {
     inherits('global') 
