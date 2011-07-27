@@ -90,11 +90,11 @@ private URLClassLoader getExtendedClassLoader(name) {
             ulcClientClassesAppDir.toURI().toURL()]
 
     File baseClientLibDir = new File(basedir, 'lib/ulc-client')
-    baseClientLibDir.eachFileMatch(~/.*\.jar/) { jar -> urls << toURI().toURL() }
+    baseClientLibDir.eachFileMatch(~/.*\.jar/) { jar -> urls << jar.toURI().toURL() }
 
     File appClientLibDir = new File(baseClientLibDir, name)
     appClientLibDir.mkdirs()
-    appClientLibDir.eachFileMatch(~/.*\.jar/) { jar -> urls << toURI().toURL() }
+    appClientLibDir.eachFileMatch(~/.*\.jar/) { jar -> urls << jar.toURI().toURL() }
 
     classLoader = new URLClassLoader(urls as URL[], rootLoader)
     Thread.currentThread().setContextClassLoader(classLoader)
