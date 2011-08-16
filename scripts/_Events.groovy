@@ -138,6 +138,10 @@ eventCompileEnd = {
                     fork: true) {
                 src(path: "${basedir}/src/ulc-client/${alias}")
             }
+            ant.copy(todir: ulcAppClassesDir) {
+                fileset(dir: "${basedir}/src/ulc-client/${alias}",
+                        excludes: '**/*.groovy, **/*.java, **/*.svn/**, **/CVS/**')
+            }
         }
         catch (Exception e) {
             event("StatusFinal", ["Compilation error: ${e.message}"])
@@ -243,7 +247,7 @@ private def prepareApplication(stagingDir) {
 
         if (!ant.project.properties.aliasClientJarUpToDate) {
             ant.jar(destfile: aliasClientJar) {
-                fileset(dir: aliasClientClassesDir, includes: '**/*.class')
+                fileset(dir: aliasClientClassesDir)
             }
         }
         copyPackAndSignFile(aliasClientJar, tmpUlcClientLibDir, ulcClientLibsDir)
