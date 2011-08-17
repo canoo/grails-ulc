@@ -157,6 +157,10 @@ eventCompileEnd = {
 eventCreateWarStart = { warName, stagingDir ->
     def ulcClientLibs = collectClientJars()
     ulcClientLibs.each { libFile ->
+        def serverLib = new File("${basedir}/lib/${libFile.name}")
+        // do not delete server libs that match client libs
+        // works for manually placed jars at the moment
+        if(serverLib.exists()) return
         ant.delete(file: new File("${stagingDir}/WEB-INF/lib/${libFile.name}"), quiet: true, failonerror: false)
     }
 }
