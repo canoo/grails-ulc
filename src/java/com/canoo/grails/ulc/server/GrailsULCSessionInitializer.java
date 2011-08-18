@@ -8,7 +8,11 @@ import org.codehaus.groovy.grails.commons.ApplicationHolder;
 import org.codehaus.groovy.grails.support.PersistenceContextInterceptor;
 import org.springframework.context.ApplicationContext;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 public class GrailsULCSessionInitializer {
+    private static final Log LOG = LogFactory.getLog(GrailsULCSessionInitializer.class);
 
     static ULCSession createSession(String applicationClassName, IContainerServices containerServices) {
         return configureSession(new GrailsULCSession(applicationClassName, containerServices));
@@ -20,16 +24,27 @@ public class GrailsULCSessionInitializer {
                 return ApplicationHolder.getApplication().getMainContext();
             }
 
-            @Override
             public void roundTripWillEnd(RoundTripEvent event) {
                 for (PersistenceContextInterceptor interceptor : getApplicationContext()
                         .getBeansOfType(PersistenceContextInterceptor.class).values()) {
-                    interceptor.flush();
-                    interceptor.destroy();
+                    try {
+                        interceptor.flush();
+                    } catch (Exception e) {
+                        if (LOG.isWarnEnabled()) {
+                            LOG.warn("An error occurred while attempting to flush interceptor " + interceptor, e);
+                        }
+                    } finally {
+                        try {
+                            interceptor.destroy();
+                        } catch (Exception e) {
+                            if (LOG.isWarnEnabled()) {
+                                LOG.warn("An error occurred while attempting to destroy interceptor " + interceptor, e);
+                            }
+                        }
+                    }
                 }
             }
 
-            @Override
             public void roundTripDidStart(RoundTripEvent event) {
                 for (PersistenceContextInterceptor interceptor : getApplicationContext()
                         .getBeansOfType(PersistenceContextInterceptor.class).values()) {
@@ -39,5 +54,4 @@ public class GrailsULCSessionInitializer {
         });
         return session;
     }
-
 }
