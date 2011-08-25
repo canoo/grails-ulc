@@ -152,7 +152,7 @@ checkLicenseToken = {
 }
 
 checkEvalLicense = {
-    String text = 'https://ulc.canoo.com/rest/license/ULC%20Core'.toURL().text
+    String text = 'https://ulc.canoo.com/rest/license/eval/ULC%20Core'.toURL().text
     println 'Downloading evaluation license...'
     downloadLicense(text)
 }
